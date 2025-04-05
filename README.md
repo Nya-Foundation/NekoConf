@@ -38,6 +38,7 @@ NekoConf is a configuration management system for Python applications that provi
   - Form-based visual editor
   - JSON/YAML editors with syntax highlighting
   - Real-time updates via WebSockets
+  - Dark and light theme support
 
 - **Real-time Updates**
   - Observe configuration changes with callbacks
@@ -72,6 +73,16 @@ nekoconf server --config config.yaml
 ```
 
 This starts a web server at http://0.0.0.0:8000 where you can view and edit your configuration.
+
+#### Web UI Screenshots
+
+NekoConf features a modern web interface with both dark and light themes:
+
+##### Dark Theme
+![Dark Theme](/images/dark.png)
+
+##### Light Theme
+![Light Theme](/images/light.png)
 
 ### Command Line Interface
 
