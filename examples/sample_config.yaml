@@ -1,0 +1,19 @@
+database:
+  host: localhost
+  name: myapp
+  password: password
+  port: 5432
+  user: user
+features:
+  enable_auth: true
+  enable_cache: true
+  enable_metrics: false
+logging:
+  file: /var/log/myapp.log
+  level: info
+  max_size: 10485760
+  rotate: true
+server:
+  debug: true
+  host: localhost
+  port: 8080
