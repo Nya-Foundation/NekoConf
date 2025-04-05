@@ -1,0 +1,55 @@
+{
+    "type": "object",
+    "required": [
+        "server"
+    ],
+    "properties": {
+        "server": {
+            "type": "object",
+            "required": [
+                "host",
+                "port"
+            ],
+            "properties": {
+                "host": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535
+                },
+                "debug": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "database": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "format": "uri"
+                },
+                "pool_size": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
+        "logging": {
+            "type": "object",
+            "properties": {
+                "level": {
+                    "type": "string",
+                    "enum": [
+                        "DEBUG",
+                        "INFO",
+                        "WARNING",
+                        "ERROR"
+                    ]
+                }
+            }
+        }
+    }
+}

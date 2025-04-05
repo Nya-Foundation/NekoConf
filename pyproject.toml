@@ -1,0 +1,96 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nekoconf"
+version = "0.1.0"
+description = "NekoConf - A cute configuration manager for your JSON and YAML configuration files"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "k3scat", email = "k3scat@github.com"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "fastapi>=0.68.0,<2.0.0",
+    "uvicorn>=0.15.0,<1.0.0",
+    "pydantic>=1.8.0,<2.0.0",
+    "pyyaml>=6.0",
+    "websockets>=10.0,<12.0",
+    "aiofiles>=0.8.0,<1.0.0",
+    "jsonschema>=4.0.0; extra == 'schema'"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.21.0",
+    "flake8>=6.0.0",
+    "black>=23.0.0",
+    "mypy>=1.0.0",
+    "requests>=2.25.0",
+    "jsonschema>=4.0.0",
+    "httpx>=0.23.0",
+]
+schema = [
+    "jsonschema>=4.0.0"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/k3scat/nekoconf"
+"Bug Tracker" = "https://github.com/k3scat/nekoconf/issues"
+
+[project.scripts]
+nekoconf = "nekoconf.cli:main"
+
+[tool.setuptools]
+packages = ["nekoconf"]
+
+[tool.black]
+line-length = 100
+target-version = ["py38"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+addopts = "--cov=nekoconf --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["nekoconf"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "pass",
+    "raise ImportError"
+]

@@ -1,0 +1,109 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - staging
+      # For main branch, we'll only use the PR event to avoid double triggering
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.12']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: ${{ github.ref }}
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
+        
+    - name: Run tests with coverage
+      run: |
+        pytest --cov=nekoconf tests/ --cov-report=xml
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: true
+        token: ${{ secrets.CODECOV_TOKEN }}
+        name: codecov-umbrella-nekoconf
+        flags: unittests
+        verbose: true
+
+  # Single publish job that handles both staging and main branches
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    # Run on push to staging or when PR is merged to main (which creates a merge commit)
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/staging') || 
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.base_ref == 'main')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Set environment variables
+      id: set-env
+      run: |
+        # Determine if we're on staging or main
+        if [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+          echo "IS_DEV=true" >> $GITHUB_ENV
+          echo "PYPI_REPO_URL=https://test.pypi.org/legacy/" >> $GITHUB_ENV
+          echo "PYPI_TOKEN=${{ secrets.TEST_PYPI_API_TOKEN }}" >> $GITHUB_ENV
+        else
+          echo "IS_DEV=false" >> $GITHUB_ENV
+          # For production PyPI, either leave empty (defaults to official PyPI) 
+          # or explicitly set to https://upload.pypi.org/legacy/
+          echo "PYPI_REPO_URL=https://upload.pypi.org/legacy/" >> $GITHUB_ENV
+          echo "PYPI_TOKEN=${{ secrets.PYPI_API_TOKEN }}" >> $GITHUB_ENV
+        fi
+    
+    - name: Set dev version with timestamp
+      if: env.IS_DEV == 'true'
+      run: |
+        # Get current version from pyproject.toml
+        VERSION=$(grep -m 1 'version =' pyproject.toml | awk -F'"' '{print $2}')
+        # Add dev suffix
+        DEV_VERSION="${VERSION}.dev"
+        # Update version in pyproject.toml
+        sed -i "s/version = \"${VERSION}\"/version = \"${DEV_VERSION}\"/" pyproject.toml
+        echo "Package version set to ${DEV_VERSION}"
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+        
+    - name: Build package
+      run: python -m build
+      
+    - name: Publish package
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ env.PYPI_TOKEN }}
+        TWINE_REPOSITORY_URL: ${{ env.PYPI_REPO_URL }}
+      run: twine upload dist/*

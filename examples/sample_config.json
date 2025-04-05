@@ -1,0 +1,24 @@
+{
+    "server": {
+        "host": "localhost",
+        "port": 8080,
+        "debug": true,
+        "options": {
+            "timeout": 30,
+            "retries": 3
+        }
+    },
+    "database": {
+        "host": "localhost",
+        "port": 5432,
+        "name": "test_db",
+        "credentials": {
+            "username": "test_user",
+            "password": "test_pass"
+        }
+    },
+    "logging": {
+        "level": "INFO",
+        "file": "app.log"
+    }
+}
