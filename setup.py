@@ -1,8 +1,7 @@
 import os
 import sys
 
-from setuptools import setup, find_packages
-
+from setuptools import find_packages, setup
 
 # Ensure we're using the correct Python version
 if sys.version_info < (3, 8):

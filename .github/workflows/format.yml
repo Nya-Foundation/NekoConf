@@ -1,5 +1,9 @@
 name: Code Formatting
 
+# run black and isort on your local machine before pushing changes
+# black .
+# isort .
+
 on:
   push:
     branches: ["*"]
@@ -11,7 +15,6 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      # Give the default GITHUB_TOKEN write permission to commit and push the changed files back to the repository.
       contents: write
       
     steps:

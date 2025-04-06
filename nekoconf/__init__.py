@@ -2,10 +2,10 @@
 
 import logging
 
-from nekoconf.config_manager import ConfigManager
-from nekoconf.web_server import WebServer
 from nekoconf.api import ConfigAPI
+from nekoconf.config_manager import ConfigManager
 from nekoconf.schema_validator import SchemaValidator
+from nekoconf.web_server import WebServer
 
 __version__ = "0.1.1"
 __all__ = ["ConfigManager", "WebServer", "ConfigAPI", "SchemaValidator"]

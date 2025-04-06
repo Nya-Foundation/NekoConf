@@ -1,8 +1,9 @@
 """Tests for the ConfigManager class."""
 
 import asyncio
-import pytest
 from pathlib import Path
+
+import pytest
 
 from nekoconf.config_manager import ConfigManager
 from tests.test_helpers import wait_for_observers

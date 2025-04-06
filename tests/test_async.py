@@ -1,12 +1,13 @@
 """Tests for asynchronous operations in NekoConf."""
 
 import asyncio
+
 import pytest
 
 from nekoconf.utils import notify_observers
 from tests.test_helpers import (
-    create_failing_observer,
     create_async_failing_observer,
+    create_failing_observer,
     wait_for_observers,
 )
 

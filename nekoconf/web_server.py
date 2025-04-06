@@ -4,17 +4,17 @@ This module provides a web interface for managing configuration files.
 """
 
 import asyncio
+import importlib.resources
 import json
 import logging
 import os
-import importlib.resources
-import pkg_resources
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Union
 
+import pkg_resources
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from nekoconf.config_manager import ConfigManager
