@@ -19,6 +19,7 @@ setup(
         "pyyaml>=6.0",
         "websockets>=10.0,<12.0",
         "aiofiles>=0.8.0,<1.0.0",
+        "setuptools>=42.0.0",  # Ensures pkg_resources is available
         "jsonschema>=4.0.0; extra == 'schema'",
     ],
     entry_points={
