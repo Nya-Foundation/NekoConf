@@ -1,10 +1,10 @@
-name: CI/CD
+name: CI - Test
 
 on:
   push:
-    branches:
-      - main
-      - staging
+    branches: ["*"]
+  pull_request:
+    branches: ["*"]
 
 jobs:
   test:
@@ -12,6 +12,7 @@ jobs:
     strategy:
       matrix:
         python-version: ['3.12']
+      fail-fast: false
 
     steps:
     - name: Checkout code
@@ -24,6 +25,10 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+        cache-dependency-path: |
+          pyproject.toml
+          setup.py
 
     - name: Install dependencies
       run: |
@@ -43,98 +48,3 @@ jobs:
         name: codecov-umbrella-nekoconf
         flags: unittests
         verbose: true
-
-  # Single publish job that handles both staging and main branches
-  publish:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-    
-    - name: Set environment variables
-      id: set-env
-      run: |
-        # Determine if we're on staging or main
-        if [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
-          echo "IS_DEV=true" >> $GITHUB_ENV
-          echo "PYPI_REPO_URL=https://test.pypi.org/legacy/" >> $GITHUB_ENV
-          echo "PYPI_TOKEN=${{ secrets.TEST_PYPI_API_TOKEN }}" >> $GITHUB_ENV
-        else
-          echo "IS_DEV=false" >> $GITHUB_ENV
-          # For production PyPI, either leave empty (defaults to official PyPI) 
-          # or explicitly set to https://upload.pypi.org/legacy/
-          echo "PYPI_REPO_URL=https://upload.pypi.org/legacy/" >> $GITHUB_ENV
-          echo "PYPI_TOKEN=${{ secrets.PYPI_API_TOKEN }}" >> $GITHUB_ENV
-          # Extract version for release creation
-          echo "PACKAGE_VERSION=$(grep -m 1 'version =' pyproject.toml | awk -F'\"' '{print $2}')" >> $GITHUB_ENV
-        fi
-    
-    - name: Set dev version with timestamp
-      if: env.IS_DEV == 'true'
-      run: |
-        # Get current version from pyproject.toml
-        VERSION=$(grep -m 1 'version =' pyproject.toml | awk -F'"' '{print $2}')
-        # Add dev suffix
-        DEV_VERSION="${VERSION}.dev"
-        # Update version in pyproject.toml
-        sed -i "s/version = \"${VERSION}\"/version = \"${DEV_VERSION}\"/" pyproject.toml
-        echo "Package version set to ${DEV_VERSION}"
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install build twine
-        
-    - name: Build package
-      run: python -m build
-      
-    - name: Publish package
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ env.PYPI_TOKEN }}
-        TWINE_REPOSITORY_URL: ${{ env.PYPI_REPO_URL }}
-      run: twine upload dist/*
-
-  # Create GitHub release when publishing to main
-  release:
-    needs: publish
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Get version from pyproject.toml
-        id: get_version
-        run: |
-          VERSION=$(grep -m 1 'version =' pyproject.toml | awk -F'"' '{print $2}')
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          
-      - name: Generate changelog
-        id: generate_changelog
-        uses: mikepenz/release-changelog-builder-action@v4
-        with:
-          configuration: ".github/changelog-config.json"
-          outputFile: "CHANGELOG.md"
-          token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN  }}
-          
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: v${{ env.VERSION }}
-          name: Release v${{ env.VERSION }}
-          body: ${{ steps.generate_changelog.outputs.changelog }}
-          token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
-          draft: false
-          prerelease: false
-          files: |
-            dist/*.tar.gz
-            dist/*.whl
