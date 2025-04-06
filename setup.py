@@ -10,7 +10,7 @@ if sys.version_info < (3, 8):
 
 setup(
     name="nekoconf",
-    version="0.1.0",
+    version="0.1.1",
     packages=find_packages(),
     install_requires=[
         "fastapi>=0.68.0,<2.0.0",
@@ -19,6 +19,7 @@ setup(
         "pyyaml>=6.0",
         "websockets>=10.0,<12.0",
         "aiofiles>=0.8.0,<1.0.0",
+        "setuptools>=42.0.0",  # Ensures pkg_resources is available
         "jsonschema>=4.0.0; extra == 'schema'",
     ],
     entry_points={

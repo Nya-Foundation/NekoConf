@@ -164,23 +164,9 @@ def validator(sample_schema) -> SchemaValidator:
 
 
 @pytest.fixture
-def static_dir(tmp_path) -> Path:
-    """Create a temporary static files directory."""
-    static_dir = tmp_path / "static"
-    static_dir.mkdir()
-
-    # Create a minimal index.html for testing
-    index_file = static_dir / "index.html"
-    with open(index_file, "w") as f:
-        f.write("<html><body>Test Static Content</body></html>")
-
-    return static_dir
-
-
-@pytest.fixture
-def web_server(config_manager, static_dir) -> WebServer:
+def web_server(config_manager) -> WebServer:
     """Create a WebServer instance for testing."""
-    return WebServer(config_manager, static_dir=static_dir)
+    return WebServer(config_manager)
 
 
 @pytest.fixture

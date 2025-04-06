@@ -7,7 +7,7 @@ from nekoconf.web_server import WebServer
 from nekoconf.api import ConfigAPI
 from nekoconf.schema_validator import SchemaValidator
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __all__ = ["ConfigManager", "WebServer", "ConfigAPI", "SchemaValidator"]
 
 # Set up null handler to avoid "No handler found" warnings
