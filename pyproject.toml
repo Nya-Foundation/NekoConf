@@ -58,7 +58,7 @@ schema = [
 nekoconf = "nekoconf.cli:main"
 
 [tool.setuptools]
-package-dir = {"" = ""}
+package-dir = {"nekoconf" = "nekoconf"}
 packages = ["nekoconf"]
 include-package-data = true
 
