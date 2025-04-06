@@ -1,3 +1,4 @@
 include README.md LICENSE
 recursive-include nekoconf/static *
+recursive-include nekoconf/static/** *
 global-exclude *.pyc *.pyo __pycache__/*

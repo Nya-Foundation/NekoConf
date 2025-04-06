@@ -37,8 +37,9 @@ jobs:
       id: github_release
       uses: mikepenz/release-changelog-builder-action@v4
       with:
-        configFile: .github/changelog-config.json
+        configuration: ".github/changelog-config.json"
         outputFile: .github/CHANGELOG.md
+        failOnError: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -49,14 +50,18 @@ jobs:
         name: Release ${{ github.ref_name }}
         draft: false
         prerelease: false
-        body: ${{ steps.github_release.outputs.changelog }}
+        body: ${{ steps.github_release.outputs.changelog || 'First release' }}
 
     - name: Update CHANGELOG file
       run: |
         if [ -f CHANGELOG.md ]; then
           echo "# Release ${{ github.ref_name }} - $(date +'%Y-%m-%d')" > temp_changelog.md
           echo "" >> temp_changelog.md
-          echo "${{ steps.github_release.outputs.changelog }}" >> temp_changelog.md
+          if [ -n "${{ steps.github_release.outputs.changelog }}" ]; then
+            echo "${{ steps.github_release.outputs.changelog }}" >> temp_changelog.md
+          else
+            echo "First release" >> temp_changelog.md
+          fi
           echo "" >> temp_changelog.md
           echo "" >> temp_changelog.md
           cat CHANGELOG.md >> temp_changelog.md
@@ -64,7 +69,11 @@ jobs:
         else
           echo "# Release ${{ github.ref_name }} - $(date +'%Y-%m-%d')" > CHANGELOG.md
           echo "" >> CHANGELOG.md
-          echo "${{ steps.github_release.outputs.changelog }}" >> CHANGELOG.md
+          if [ -n "${{ steps.github_release.outputs.changelog }}" ]; then
+            echo "${{ steps.github_release.outputs.changelog }}" >> CHANGELOG.md
+          else
+            echo "First release" >> CHANGELOG.md
+          fi
         fi
 
     - name: Commit updated CHANGELOG
