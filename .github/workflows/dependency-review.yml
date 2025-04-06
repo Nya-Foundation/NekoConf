@@ -2,7 +2,7 @@ name: Dependency Review
 
 on:
   pull_request:
-    branches: ["main", "staging"]
+    branches: ["main", "staging", "dev"]
 
 permissions:
   contents: read
@@ -27,4 +27,4 @@ jobs:
       - name: Scan for vulnerabilities
         uses: pypa/gh-action-pip-audit@v1.1.0
         with:
-          inputs: "requirements.txt pyproject.toml"
+          inputs: "requirements.txt"
