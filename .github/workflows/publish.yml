@@ -8,7 +8,6 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    # Improved conditional logic to avoid duplicate runs
 
     steps:
     - name: Checkout code
