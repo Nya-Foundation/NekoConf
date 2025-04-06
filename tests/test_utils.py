@@ -1,8 +1,5 @@
 """Tests for the utilities module."""
 
-import asyncio
-from pathlib import Path
-
 import pytest
 
 from nekoconf.utils import (

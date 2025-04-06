@@ -7,7 +7,7 @@ import threading
 import time
 from pathlib import Path
 
-from nekoconf import ConfigAPI, ConfigManager, WebServer
+from nekoconf import ConfigAPI, ConfigManager, NekoConf
 
 
 class MyApplication:
@@ -34,10 +34,10 @@ class MyApplication:
         self.update_app_state()
 
         # Start the web server in a separate thread
-        self.web_server = WebServer(self.config_manager)
+        self.web_server = NekoConf(self.config_manager)
         self.server_thread = threading.Thread(
             target=self.web_server.run,
-            kwargs={"host": "0.0.0.0", "port": 8000},
+            kwargs={"host": "127.0.0.1", "port": 8000},
             daemon=True,
         )
 
@@ -47,7 +47,7 @@ class MyApplication:
 
         # Start the web server thread
         self.server_thread.start()
-        print("Configuration web server started at http://0.0.0.0:8000")
+        print("Configuration web server started at http://127.0.0.1:8000")
 
         # Main application loop
         try:

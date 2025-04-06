@@ -1,8 +1,5 @@
 """Tests for the ConfigAPI class."""
 
-from pathlib import Path
-from unittest.mock import patch
-
 import pytest
 
 from nekoconf.api import ConfigAPI
