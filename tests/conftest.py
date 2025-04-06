@@ -2,18 +2,18 @@
 
 import json
 import os
+from pathlib import Path
+from typing import Any, Dict, Optional
+
 import pytest
 import yaml
-from pathlib import Path
-from typing import Dict, Any, Optional
+from fastapi.testclient import TestClient
 
+from nekoconf.api import ConfigAPI
 from nekoconf.config_manager import ConfigManager
 from nekoconf.schema_validator import SchemaValidator
 from nekoconf.web_server import WebServer
-from nekoconf.api import ConfigAPI
-from fastapi.testclient import TestClient
-
-from tests.test_helpers import ConfigTestHelper, SyncObserver, AsyncObserver
+from tests.test_helpers import AsyncObserver, ConfigTestHelper, SyncObserver
 
 
 # Example file fixtures - session scoped for efficiency

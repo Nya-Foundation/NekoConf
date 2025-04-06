@@ -1,0 +1,74 @@
+name: CI - Release
+
+on:
+  workflow_run:
+    workflows: ["CI - Publish"]
+    types:
+      - completed
+    branches: ["main"]
+
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_run' && 
+      github.event.workflow_run.conclusion == 'success' && 
+      github.event.workflow_run.head_branch == 'main')
+
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
+    
+    - name: Generate Changelog
+      id: github_release
+      uses: mikepenz/release-changelog-builder-action@v4
+      with:
+        configFile: .github/changelog-config.json
+        outputFile: .github/CHANGELOG.md
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create GitHub Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: Release ${{ github.ref_name }}
+        draft: false
+        prerelease: false
+        body: ${{ steps.github_release.outputs.changelog }}
+
+    - name: Update CHANGELOG file
+      run: |
+        if [ -f CHANGELOG.md ]; then
+          echo "# Release ${{ github.ref_name }} - $(date +'%Y-%m-%d')" > temp_changelog.md
+          echo "" >> temp_changelog.md
+          echo "${{ steps.github_release.outputs.changelog }}" >> temp_changelog.md
+          echo "" >> temp_changelog.md
+          echo "" >> temp_changelog.md
+          cat CHANGELOG.md >> temp_changelog.md
+          mv temp_changelog.md CHANGELOG.md
+        else
+          echo "# Release ${{ github.ref_name }} - $(date +'%Y-%m-%d')" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "${{ steps.github_release.outputs.changelog }}" >> CHANGELOG.md
+        fi
+
+    - name: Commit updated CHANGELOG
+      uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: "docs: update CHANGELOG for ${{ github.ref_name }}"
+        file_pattern: "CHANGELOG.md"

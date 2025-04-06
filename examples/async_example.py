@@ -73,9 +73,7 @@ async def main():
     server_port = config_api.get_int("server.port")
     debug_mode = config_api.get_bool("server.debug")
 
-    logger.info(
-        f"Server configuration: {server_host}:{server_port} (Debug: {debug_mode})"
-    )
+    logger.info(f"Server configuration: {server_host}:{server_port} (Debug: {debug_mode})")
 
     # Type-safe access with defaults
     timeout = config_api.get_int("server.timeout", 30)

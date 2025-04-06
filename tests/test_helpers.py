@@ -1,10 +1,11 @@
 """Helper utilities for NekoConf tests."""
 
 import asyncio
-import yaml
 import json
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Union, Callable, Awaitable
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
+
+import yaml
 
 
 class BaseObserver:

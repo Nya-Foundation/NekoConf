@@ -7,7 +7,7 @@ import threading
 import time
 from pathlib import Path
 
-from nekoconf import ConfigAPI, WebServer, ConfigManager
+from nekoconf import ConfigAPI, ConfigManager, WebServer
 
 
 class MyApplication:

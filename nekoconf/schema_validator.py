@@ -1,11 +1,11 @@
 """Schema validation for configuration files."""
 
 import json
-import yaml
 from pathlib import Path
 from typing import Any, Dict, List, Union
 
 import jsonschema
+import yaml
 from jsonschema import validators
 
 

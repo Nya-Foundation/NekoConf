@@ -1,20 +1,21 @@
 """Tests for the command-line interface."""
 
-import pytest
-import yaml
 import json
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
+import yaml
 
 from nekoconf.cli import (
     _create_parser,
-    handle_server_command,
-    handle_get_command,
-    handle_set_command,
     handle_delete_command,
+    handle_get_command,
     handle_import_command,
-    handle_validate_command,
     handle_init_command,
+    handle_server_command,
+    handle_set_command,
+    handle_validate_command,
     main,
 )
 
