@@ -1,15 +1,12 @@
 """Tests for the web server module."""
 
-import asyncio
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import WebSocket
-from fastapi.testclient import TestClient
 from fastapi.websockets import WebSocketDisconnect
 
-from nekoconf.web_server import WebServer, WebSocketManager
-from tests.test_helpers import ConfigTestHelper
+from nekoconf.server import NekoConf, WebSocketManager
 
 
 class TestWebSocketManager:
@@ -79,12 +76,12 @@ class TestWebSocketManager:
         assert websocket2 not in manager.active_connections
 
 
-class TestWebServer:
-    """Tests for the WebServer class."""
+class TestNekoConf:
+    """Tests for the NekoConf class."""
 
     def test_init(self, config_manager):
-        """Test initializing the WebServer."""
-        server = WebServer(config_manager)
+        """Test initializing the NekoConf."""
+        server = NekoConf(config_manager)
 
         assert server.config_manager == config_manager
 
@@ -123,7 +120,7 @@ class TestWebServer:
         assert config_manager.get("server.host") == "127.0.0.1"
 
         # Test bad request - exact behavior depends on implementation
-        response = test_client.post("/api/config/server/host", data="not-a-json")
+        response = test_client.post("/api/config/server/host", json="not-a-json")
         assert response.status_code in [400, 422]  # FastAPI validation might return 422
 
         # Test updating multiple values

@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 import yaml
 
 from nekoconf.cli import (
@@ -37,7 +36,7 @@ def test_create_parser():
 
 def test_handle_server_command():
     """Test the server command handler with mocks."""
-    with patch("nekoconf.cli.WebServer") as mock_web_server:
+    with patch("nekoconf.cli.NekoConf") as mock_web_server:
         # Create args object
         args = MagicMock()
         args.config = "config.yaml"

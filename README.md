@@ -4,7 +4,7 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/nekoconf.svg)](https://pypi.org/project/nekoconf/)
 [![License](https://img.shields.io/github/license/k3scat/nekoconf.svg)](https://github.com/k3scat/nekoconf/blob/main/LICENSE)
 [![Code Coverage](https://codecov.io/gh/k3scat/nekoconf/branch/main/graph/badge.svg)](https://codecov.io/gh/k3scat/nekoconf)
-[![CI/CD](https://github.com/k3scat/nekoconf/actions/workflows/ci.yml/badge.svg)](https://github.com/k3scat/nekoconf/actions/workflows/ci.yml)
+[![CI/CD](https://github.com/k3scat/nekoconf/actions/workflows/ci.yml/badge.svg)](https://github.com/k3scat/nekoconf/actions/workflows/publish.yml)
 
 NekoConf is a configuration management system for Python applications that provides a modern web UI, real-time updates, and a simple API for integration.
 
@@ -50,16 +50,19 @@ NekoConf is a configuration management system for Python applications that provi
   - Type-safe configuration access
   - Async/await support
 
+- **Authentication Support**
+  - Secure web UI and API with password protection
+
 ## Installation
 
 ```bash
 pip install nekoconf
 ```
 
-or with schema validation support
+or build from source
 
 ```bash
-pip install nekoconf[schema]
+pip install -e .
 ```
 
 ## Quick Start
@@ -72,7 +75,7 @@ Start the web server to manage your configuration through a browser:
 nekoconf server --config config.yaml
 ```
 
-This starts a web server at http://0.0.0.0:8000 where you can view and edit your configuration.
+This starts a web server at http://127.0.0.1:8000 where you can view and edit your configuration.
 
 #### Web UI Screenshots
 
@@ -291,13 +294,63 @@ manager.save()  # Save to file
 manager.register_observer(callback)  # Add observer
 ```
 
-### WebServer
+### NekoConf
 
 Web server for managing configuration through a UI:
 
 ```python
-server = WebServer(config_manager)
+server = NekoConf(config_manager)
+server.run(host="127.0.0.1", port=8000)
+```
+
+#### Securing the Web Interface and API
+
+You can secure the web interface and API with password authentication:
+
+```python
+from nekoconf import ConfigManager, NekoConf
+
+# Create a config manager
+config = ConfigManager("config.yaml")
+
+# Create a web server with authentication
+server = NekoConf(
+    config_manager=config,
+    username="admin",  # Default username
+    password="mysecretpassword"  # Set your password here
+)
+
+# Run the server
 server.run(host="0.0.0.0", port=8000)
+```
+
+Using the command line:
+
+```bash
+nekoconf server --config=config.yaml --username=admin --password=mysecretpassword
+```
+
+If no password is provided, authentication will be disabled.
+
+#### API Access with Authentication
+
+When authentication is enabled, you need to provide credentials for API access:
+
+```bash
+# Get the entire configuration
+curl -u admin:mysecretpassword http://localhost:8000/api/config
+
+# Get a specific configuration value
+curl -u admin:mysecretpassword http://localhost:8000/api/config/server/host
+
+# Update a configuration value
+curl -u admin:mysecretpassword -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"value": "new_value"}' \
+  http://localhost:8000/api/config/server/host
+
+# Reload the configuration from disk
+curl -u admin:mysecretpassword -X POST http://localhost:8000/api/config/reload
 ```
 
 ## Development
