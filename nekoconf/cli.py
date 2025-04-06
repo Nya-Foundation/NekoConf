@@ -43,19 +43,13 @@ def _create_parser() -> argparse.ArgumentParser:
     Returns:
         The configured argument parser
     """
-    parser = argparse.ArgumentParser(
-        description="NekoConf - Configuration management with web UI"
-    )
-    parser.add_argument(
-        "--version", action="store_true", help="Show version information and exit"
-    )
+    parser = argparse.ArgumentParser(description="NekoConf - Configuration management with web UI")
+    parser.add_argument("--version", action="store_true", help="Show version information and exit")
 
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # Server command
-    server_parser = subparsers.add_parser(
-        "server", help="Start the configuration web server"
-    )
+    server_parser = subparsers.add_parser("server", help="Start the configuration web server")
     server_parser.add_argument(
         "--config",
         "-c",
@@ -148,9 +142,7 @@ def _create_parser() -> argparse.ArgumentParser:
     )
 
     # Import command
-    import_parser = subparsers.add_parser(
-        "import", help="Import configuration from a file"
-    )
+    import_parser = subparsers.add_parser("import", help="Import configuration from a file")
     import_parser.add_argument(
         "--config",
         "-c",
@@ -195,9 +187,7 @@ def _create_parser() -> argparse.ArgumentParser:
     )
 
     # Create empty config command
-    init_parser = subparsers.add_parser(
-        "init", help="Create a new empty configuration file"
-    )
+    init_parser = subparsers.add_parser("init", help="Create a new empty configuration file")
     init_parser.add_argument(
         "--config",
         "-c",
@@ -226,7 +216,6 @@ def handle_server_command(args: argparse.Namespace) -> int:
     """
     try:
         config_path = Path(args.config)
-        static_dir = Path(args.static_dir)
         schema_path = Path(args.schema) if args.schema else None
 
         # Create config manager
@@ -234,7 +223,7 @@ def handle_server_command(args: argparse.Namespace) -> int:
         config_manager.load()
 
         # Create and run web server
-        server = WebServer(config_manager, static_dir)
+        server = WebServer(config_manager)
         server.run(host=args.host, port=args.port, reload=args.reload)
 
         return 0
@@ -494,9 +483,7 @@ def handle_init_command(args: argparse.Namespace) -> int:
                 # Load template and save as new config
                 template_data = load_file(template_path)
                 save_file(config_path, template_data)
-                logger.info(
-                    f"Created new configuration file from template: {config_path}"
-                )
+                logger.info(f"Created new configuration file from template: {config_path}")
             except Exception as e:
                 logger.error(f"Error creating config from template: {e}")
                 return 1

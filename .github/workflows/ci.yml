@@ -3,13 +3,8 @@ name: CI/CD
 on:
   push:
     branches:
-      - staging
-      # For main branch, we'll only use the PR event to avoid double triggering
-  pull_request:
-    branches:
       - main
-    types:
-      - closed
+      - staging
 
 jobs:
   test:
@@ -53,11 +48,6 @@ jobs:
   publish:
     needs: test
     runs-on: ubuntu-latest
-    # Run on push to staging or when PR is merged to main (which creates a merge commit)
-    if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/staging') || 
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.base_ref == 'main')
-    
     steps:
     - uses: actions/checkout@v4
     
@@ -80,6 +70,8 @@ jobs:
           # or explicitly set to https://upload.pypi.org/legacy/
           echo "PYPI_REPO_URL=https://upload.pypi.org/legacy/" >> $GITHUB_ENV
           echo "PYPI_TOKEN=${{ secrets.PYPI_API_TOKEN }}" >> $GITHUB_ENV
+          # Extract version for release creation
+          echo "PACKAGE_VERSION=$(grep -m 1 'version =' pyproject.toml | awk -F'\"' '{print $2}')" >> $GITHUB_ENV
         fi
     
     - name: Set dev version with timestamp
@@ -107,3 +99,30 @@ jobs:
         TWINE_PASSWORD: ${{ env.PYPI_TOKEN }}
         TWINE_REPOSITORY_URL: ${{ env.PYPI_REPO_URL }}
       run: twine upload dist/*
+
+  # Create GitHub release when publishing to main
+  release:
+    needs: publish
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from pyproject.toml
+        id: get_version
+        run: |
+          VERSION=$(grep -m 1 'version =' pyproject.toml | awk -F'"' '{print $2}')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Release v${{ env.VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

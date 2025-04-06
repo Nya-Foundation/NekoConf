@@ -42,7 +42,6 @@ def test_handle_server_command():
         args.config = "config.yaml"
         args.host = "127.0.0.1"
         args.port = 9000
-        args.static_dir = "static"
         args.schema = None
         args.reload = True
 

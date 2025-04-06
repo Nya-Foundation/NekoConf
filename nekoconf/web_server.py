@@ -7,6 +7,8 @@ import asyncio
 import json
 import logging
 import os
+import importlib.resources
+import pkg_resources
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Union
 
@@ -79,7 +81,6 @@ class WebServer:
     def __init__(
         self,
         config_manager: ConfigManager,
-        static_dir: Union[str, Path] = "static",
     ) -> None:
         """Initialize the web server.
 
@@ -88,7 +89,24 @@ class WebServer:
             static_dir: Directory containing static web UI files
         """
         self.config_manager = config_manager
-        self.static_dir = Path(static_dir)
+
+        # Find the static directory relative to the package
+        try:
+            # Try to get the static directory using importlib.resources (Python 3.7+)
+            self.static_dir = Path(importlib.resources.files("nekoconf") / "static")
+        except (ImportError, AttributeError):
+            try:
+                # Fallback to pkg_resources for older Python versions
+                self.static_dir = Path(pkg_resources.resource_filename("nekoconf", "static"))
+            except Exception:
+                # Last resort: try a relative path from the current file
+                self.static_dir = Path(os.path.dirname(__file__)) / "static"
+                if not self.static_dir.exists():
+                    # If still not found, try a relative path from the current directory
+                    self.static_dir = Path("static")
+
+        logger.debug(f"Static resources directory set to: {self.static_dir.resolve()}")
+
         self.app = FastAPI(title="NekoConf", description="Configuration Management API")
         self.ws_manager = WebSocketManager()
 
@@ -271,6 +289,20 @@ class WebServer:
         </html>
         """
 
+    async def start_background(
+        self,
+        host: str = "0.0.0.0",
+        port: int = 8000,
+        reload: bool = False,
+    ):
+        """Start the dashboard server in the background."""
+
+        logger.info(f"Starting NekoConf web server at http://{host}:{port} in the background")
+
+        config = uvicorn.Config(app=self.app, host=host, port=port, log_level="info", reload=reload)
+        server = uvicorn.Server(config)
+        await server.serve()
+
     def run(
         self,
         host: str = "0.0.0.0",
@@ -285,13 +317,6 @@ class WebServer:
             reload: Whether to enable auto-reload for development
         """
         logger.info(f"Starting NekoConf web server at http://{host}:{port}")
-
-        # Check if static directory exists and warn if not
-        if not self.static_dir.exists() or not self.static_dir.is_dir():
-            logger.warning(
-                f"Static directory not found: {self.static_dir}. "
-                "Basic API functionality will be available, but the web UI will be limited."
-            )
 
         uvicorn.run(
             self.app,

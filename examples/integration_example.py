@@ -34,7 +34,7 @@ class MyApplication:
         self.update_app_state()
 
         # Start the web server in a separate thread
-        self.web_server = WebServer(self.config_manager, static_dir="static")
+        self.web_server = WebServer(self.config_manager)
         self.server_thread = threading.Thread(
             target=self.web_server.run,
             kwargs={"host": "0.0.0.0", "port": 8000},

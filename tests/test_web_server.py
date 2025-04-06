@@ -81,12 +81,11 @@ class TestWebSocketManager:
 class TestWebServer:
     """Tests for the WebServer class."""
 
-    def test_init(self, config_manager, static_dir):
+    def test_init(self, config_manager):
         """Test initializing the WebServer."""
-        server = WebServer(config_manager, static_dir=static_dir)
+        server = WebServer(config_manager)
 
         assert server.config_manager == config_manager
-        assert server.static_dir == static_dir
 
         assert hasattr(server, "app")
         # Updated to reflect actual implementation:
@@ -157,21 +156,6 @@ class TestWebServer:
 
         # reload resets to the file value
         assert config_manager.get("server.host") == "localhost"
-
-    def test_static_and_fallback(self, test_client, web_server, static_dir):
-        """Test static file serving and fallback index."""
-        # Test static files
-        response = test_client.get("/")
-        assert response.status_code == 200
-        assert "Test Static Content" in response.text
-
-        # Test fallback
-        server = WebServer(web_server.config_manager, static_dir="/nonexistent")
-        client = TestClient(server.app)
-        response = client.get("/")
-        assert response.status_code == 200
-        assert "NekoConf" in response.text
-        assert "API Endpoints" in response.text
 
     @patch("uvicorn.run")
     def test_run(self, mock_run, web_server):
