@@ -9,9 +9,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     # Improved conditional logic to avoid duplicate runs
-    if: |
-      github.ref == 'refs/heads/main'
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
