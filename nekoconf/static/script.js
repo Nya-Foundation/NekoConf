@@ -8,18 +8,19 @@ let ws;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
+const apiUrl = "{{ request.scope.root_path }}/api/config";
 // API service for interacting with the backend
 const apiService = {
   // Get all configuration
   async fetchConfig() {
-    const response = await fetch("/api/config");
+    const response = await fetch(apiUrl);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     return await response.json();
   },
 
   // Update multiple configuration values
   async updateConfig(config) {
-    const response = await fetch("/api/config", {
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(config),
@@ -39,14 +40,14 @@ const apiService = {
 
   // Get a specific configuration path
   async getConfigPath(path) {
-    const response = await fetch(`/api/config/${path}`);
+    const response = await fetch(`${apiUrl}/${path}`);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     return await response.json();
   },
 
   // Set a specific configuration path
   async setConfigPath(path, value) {
-    const response = await fetch(`/api/config/${path}`, {
+    const response = await fetch(`${apiUrl}/${path}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ value }),
@@ -58,7 +59,7 @@ const apiService = {
 
   // Delete a specific configuration path
   async deleteConfigPath(path) {
-    const response = await fetch(`/api/config/${path}`, {
+    const response = await fetch(`${apiUrl}/${path}`, {
       method: "DELETE",
     });
 
@@ -68,7 +69,7 @@ const apiService = {
 
   // Reload configuration from disk
   async reloadConfig() {
-    const response = await fetch("/api/config/reload", {
+    const response = await fetch(`${apiUrl}/reload`, {
       method: "POST",
     });
 
@@ -78,7 +79,7 @@ const apiService = {
 
   // Validate configuration against schema
   async validateConfig() {
-    const response = await fetch("/api/config/validate", {
+    const response = await fetch(`${apiUrl}/validate`, {
       method: "POST",
     });
 
@@ -91,7 +92,7 @@ const apiService = {
 const wsService = {
   init() {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const wsUrl = `${protocol}//${window.location.host}{{ request.scope.root_path }}/ws`;
 
     if (ws?.readyState === WebSocket.OPEN) return;
 

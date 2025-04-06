@@ -1,26 +1,23 @@
 name: CI - Publish
 
 on:
-  workflow_run:
-    workflows: ["CI - Test", "Code Formatting"]
-    types:
-      - completed
-    branches: ["main", "staging"]
+  push:
+    tags:
+      - 'v*.*.*'
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # Improved conditional logic to avoid duplicate runs
     if: |
-      (github.event_name == 'workflow_run' && 
-      github.event.workflow_run.conclusion == 'success' && 
-      (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'staging'))
+      github.ref == 'refs/heads/main'
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-        ref: ${{ github.ref }}
+        ref: ${{ github.event.workflow_run.head_sha }}
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -37,18 +34,8 @@ jobs:
       run: |
         python -m build
 
-    - name: Publish package to TestPyPI
-      if: github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'staging'
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        user: __token__
-        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-        repository_url: https://test.pypi.org/legacy/
-        skip_existing: true
-        verbose: true
-
     - name: Publish package to PyPI
-      if: (github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'main')
+      if: github.event.workflow_run.head_branch == 'main'
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         user: __token__

@@ -3,19 +3,19 @@
 This module provides a web interface for managing configuration files.
 """
 
-import asyncio
 import importlib.resources
 import json
 import logging
-import os
+import secrets
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List
 
-import pkg_resources
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.templating import Jinja2Templates
 
 from nekoconf.config_manager import ConfigManager
 
@@ -75,40 +75,44 @@ class WebSocketManager:
             self.disconnect(connection)
 
 
-class WebServer:
-    """Web server for managing configuration files through a web UI."""
+class NekoConf:
+    """NekoConf API and Web server for managing configuration."""
 
     def __init__(
         self,
         config_manager: ConfigManager,
+        username: str = "admin",
+        password: str = None,
     ) -> None:
         """Initialize the web server.
 
         Args:
             config_manager: Configuration manager instance
-            static_dir: Directory containing static web UI files
+            username: Username for authentication (default: admin)
+            password: Password for authentication (if None, authentication is disabled)
         """
         self.config_manager = config_manager
+        self.username = username
+        self.password = password
+        self.security = HTTPBasic()
 
-        # Find the static directory relative to the package
-        try:
-            # Try to get the static directory using importlib.resources (Python 3.7+)
-            self.static_dir = Path(importlib.resources.files("nekoconf") / "static")
-        except (ImportError, AttributeError):
-            try:
-                # Fallback to pkg_resources for older Python versions
-                self.static_dir = Path(pkg_resources.resource_filename("nekoconf", "static"))
-            except Exception:
-                # Last resort: try a relative path from the current file
-                self.static_dir = Path(os.path.dirname(__file__)) / "static"
-                if not self.static_dir.exists():
-                    # If still not found, try a relative path from the current directory
-                    self.static_dir = Path("static")
+        # Try to get the static directory using importlib.resources (Python 3.7+)
+        self.static_dir = Path(importlib.resources.files("nekoconf") / "static")
+        self.templates = Jinja2Templates(directory=str(self.static_dir))
 
-        logger.debug(f"Static resources directory set to: {self.static_dir.resolve()}")
+        logger.info(f"Static resources directory set to: {self.static_dir.resolve()}")
 
         self.app = FastAPI(title="NekoConf", description="Configuration Management API")
         self.ws_manager = WebSocketManager()
+
+        # Add CORS middleware
+        self.app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
         # Register as configuration observer
         self.config_manager.register_observer(self._on_config_change)
@@ -116,17 +120,60 @@ class WebServer:
         # Set up routes
         self._setup_routes()
 
+    def _verify_credentials(self, credentials: HTTPBasicCredentials) -> bool:
+        """Verify the provided credentials.
+
+        Args:
+            credentials: The HTTP Basic credentials to verify
+
+        Returns:
+            True if credentials are valid, False otherwise
+        """
+        if self.password is None:  # Authentication disabled
+            return True
+
+        correct_username = secrets.compare_digest(credentials.username, self.username)
+        correct_password = secrets.compare_digest(credentials.password, self.password)
+        return correct_username and correct_password
+
+    def _auth_required(
+        self, credentials: HTTPBasicCredentials = Depends(HTTPBasic())
+    ) -> HTTPBasicCredentials:
+        """Dependency for routes that require authentication.
+
+        Args:
+            credentials: The HTTP Basic credentials to verify
+
+        Returns:
+            The credentials if valid
+
+        Raises:
+            HTTPException: If credentials are invalid
+        """
+        if self.password is None:  # Authentication disabled
+            return credentials
+
+        if not self._verify_credentials(credentials):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid username or password",
+                headers={"WWW-Authenticate": "Basic"},
+            )
+        return credentials
+
     def _setup_routes(self) -> None:
         """Set up API routes and static file serving."""
 
         # API endpoints
         @self.app.get("/api/config", response_class=JSONResponse)
-        def get_config():
+        def get_config(credentials: HTTPBasicCredentials = Depends(self._auth_required)):
             """Get the entire configuration."""
             return self.config_manager.get()
 
         @self.app.get("/api/config/{key_path:path}", response_class=JSONResponse)
-        def get_config_path(key_path: str):
+        def get_config_path(
+            key_path: str, credentials: HTTPBasicCredentials = Depends(self._auth_required)
+        ):
             """Get a specific configuration path."""
 
             # convert key_path to dot notation
@@ -138,7 +185,9 @@ class WebServer:
             return value
 
         @self.app.post("/api/config", response_class=JSONResponse)
-        async def update_config(data: Dict[str, Any]):
+        async def update_config(
+            data: Dict[str, Any], credentials: HTTPBasicCredentials = Depends(self._auth_required)
+        ):
             """Update multiple configuration values."""
             self.config_manager.update(data)
 
@@ -146,13 +195,13 @@ class WebServer:
             return {"status": "success"}
 
         @self.app.post("/api/config/reload", response_class=JSONResponse)
-        async def reload_config():
+        async def reload_config(credentials: HTTPBasicCredentials = Depends(self._auth_required)):
             """Reload configuration from disk."""
             self.config_manager.load()
             return {"status": "success"}
 
         @self.app.post("/api/config/validate", response_class=JSONResponse)
-        async def validate_config():
+        async def validate_config(credentials: HTTPBasicCredentials = Depends(self._auth_required)):
             """Validate the current configuration against the schema."""
             errors = self.config_manager.validate()
             if errors:
@@ -160,7 +209,11 @@ class WebServer:
             return {"valid": True}
 
         @self.app.post("/api/config/{key_path:path}", response_class=JSONResponse)
-        async def set_config(key_path: str, data: Dict[str, Any]):
+        async def set_config(
+            key_path: str,
+            data: Dict[str, Any],
+            credentials: HTTPBasicCredentials = Depends(self._auth_required),
+        ):
             """Set a specific configuration path."""
 
             # convert key_path to dot notation
@@ -171,7 +224,9 @@ class WebServer:
             return {"status": "success"}
 
         @self.app.delete("/api/config/{key_path:path}", response_class=JSONResponse)
-        async def delete_config(key_path: str):
+        async def delete_config(
+            key_path: str, credentials: HTTPBasicCredentials = Depends(self._auth_required)
+        ):
             """Delete a specific configuration path."""
             # convert key_path to dot notation
             key_path = key_path.replace("/", ".")
@@ -203,20 +258,36 @@ class WebServer:
 
         # Serve static files if the directory exists
         if self.static_dir.exists() and self.static_dir.is_dir():
-            self.app.mount("/static", StaticFiles(directory=self.static_dir), name="static")
+            """Serve static files from the static directory."""
 
             @self.app.get("/", response_class=HTMLResponse)
-            def get_index():
+            def get_index(
+                request: Request, credentials: HTTPBasicCredentials = Depends(self._auth_required)
+            ):
                 """Serve the main UI page."""
-                index_file = self.static_dir / "index.html"
-                if index_file.exists():
-                    return FileResponse(index_file)
-                return HTMLResponse(self._get_index_html())
+                print(f"Serving index from {self.static_dir.resolve()}")
+                return self.templates.TemplateResponse("index.html", {"request": request})
+
+            @self.app.get("/static/script.js")
+            def get_script(
+                request: Request, credentials: HTTPBasicCredentials = Depends(self._auth_required)
+            ):
+                return self.templates.TemplateResponse(
+                    "script.js", {"request": request}, media_type="application/javascript"
+                )
+
+            @self.app.get("/static/styles.css")
+            def get_style(
+                request: Request, credentials: HTTPBasicCredentials = Depends(self._auth_required)
+            ):
+                return self.templates.TemplateResponse(
+                    "styles.css", {"request": request}, media_type="text/css"
+                )
 
         else:
 
             @self.app.get("/", response_class=HTMLResponse)
-            def get_index():
+            def get_index(credentials: HTTPBasicCredentials = Depends(self._auth_required)):
                 """Serve a basic index page when static files are not available."""
                 return HTMLResponse(self._get_index_html())
 
@@ -291,7 +362,7 @@ class WebServer:
 
     async def start_background(
         self,
-        host: str = "0.0.0.0",
+        host: str = "127.0.0.1",
         port: int = 8000,
         reload: bool = False,
     ):
@@ -305,7 +376,7 @@ class WebServer:
 
     def run(
         self,
-        host: str = "0.0.0.0",
+        host: str = "127.0.0.1",
         port: int = 8000,
         reload: bool = False,
     ) -> None:

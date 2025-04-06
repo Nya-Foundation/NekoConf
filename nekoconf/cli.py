@@ -10,11 +10,11 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import List, Optional
 
 from nekoconf.config_manager import ConfigManager
+from nekoconf.server import NekoConf
 from nekoconf.utils import load_file, parse_value, save_file
-from nekoconf.web_server import WebServer
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -54,14 +54,14 @@ def _create_parser() -> argparse.ArgumentParser:
         "--config",
         "-c",
         type=str,
-        required=True,
         help="Path to the configuration file (YAML or JSON)",
+        default="config.yaml",  # Default value for testing purposes
     )
     server_parser.add_argument(
         "--host",
         type=str,
-        default="0.0.0.0",
-        help="Host to run the server on (default: 0.0.0.0)",
+        default="127.0.0.1",
+        help="Host to run the server on (default: 127.0.0.1)",
     )
     server_parser.add_argument(
         "--port",
@@ -69,12 +69,7 @@ def _create_parser() -> argparse.ArgumentParser:
         default=8000,
         help="Port to run the server on (default: 8000)",
     )
-    server_parser.add_argument(
-        "--static-dir",
-        type=str,
-        default="static",
-        help="Directory containing static web UI files (default: 'static')",
-    )
+
     server_parser.add_argument(
         "--schema",
         type=str,
@@ -83,6 +78,20 @@ def _create_parser() -> argparse.ArgumentParser:
     server_parser.add_argument(
         "--reload", action="store_true", help="Enable auto-reload for development"
     )
+    server_parser.add_argument(
+        "--read-only", action="store_true", help="Start server in read-only mode"
+    )
+    server_parser.add_argument(
+        "--username",
+        type=str,
+        default="admin",
+        help="Username for authentication (default: admin)",
+    )
+    server_parser.add_argument(
+        "--password",
+        type=str,
+        help="Password for authentication (if not set, authentication is disabled)",
+    )
 
     # Get command
     get_parser = subparsers.add_parser("get", help="Get a configuration value")
@@ -90,8 +99,8 @@ def _create_parser() -> argparse.ArgumentParser:
         "--config",
         "-c",
         type=str,
-        required=True,
         help="Path to the configuration file (YAML or JSON)",
+        default="config.yaml",  # Default value for testing purposes
     )
     get_parser.add_argument(
         "key",
@@ -114,8 +123,8 @@ def _create_parser() -> argparse.ArgumentParser:
         "--config",
         "-c",
         type=str,
-        required=True,
         help="Path to the configuration file (YAML or JSON)",
+        default="config.yaml",  # Default value for testing purposes
     )
     set_parser.add_argument("key", type=str, help="Configuration key to set")
     set_parser.add_argument("value", type=str, help="Value to set for the key")
@@ -131,8 +140,8 @@ def _create_parser() -> argparse.ArgumentParser:
         "--config",
         "-c",
         type=str,
-        required=True,
         help="Path to the configuration file (YAML or JSON)",
+        default="config.yaml",  # Default value for testing purposes
     )
     delete_parser.add_argument("key", type=str, help="Configuration key to delete")
     delete_parser.add_argument(
@@ -175,8 +184,8 @@ def _create_parser() -> argparse.ArgumentParser:
         "--config",
         "-c",
         type=str,
-        required=True,
         help="Path to the configuration file (YAML or JSON)",
+        default="config.yaml",  # Default value for testing purposes
     )
     validate_parser.add_argument(
         "--schema",
@@ -192,8 +201,8 @@ def _create_parser() -> argparse.ArgumentParser:
         "--config",
         "-c",
         type=str,
-        required=True,
         help="Path to the new configuration file (YAML or JSON)",
+        default="config.yaml",  # Default value for testing purposes
     )
     init_parser.add_argument(
         "--template",
@@ -223,7 +232,11 @@ def handle_server_command(args: argparse.Namespace) -> int:
         config_manager.load()
 
         # Create and run web server
-        server = WebServer(config_manager)
+        server = NekoConf(
+            config_manager=config_manager,
+            username=args.username,
+            password=args.password,
+        )
         server.run(host=args.host, port=args.port, reload=args.reload)
 
         return 0

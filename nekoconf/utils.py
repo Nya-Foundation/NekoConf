@@ -168,9 +168,6 @@ def deep_merge(source: Dict[str, Any], destination: Dict[str, Any]) -> Dict[str,
     for key, value in source.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
             result[key] = deep_merge(value, result[key])
-
-            # Log the merge operation for debugging
-            print(f"Merged key '{key}': {result[key]} with {value}")
         else:
             result[key] = value
     return result

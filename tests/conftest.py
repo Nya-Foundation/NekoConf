@@ -1,18 +1,16 @@
 """Shared test fixtures for NekoConf tests."""
 
-import json
-import os
+import base64
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import pytest
-import yaml
 from fastapi.testclient import TestClient
 
 from nekoconf.api import ConfigAPI
 from nekoconf.config_manager import ConfigManager
 from nekoconf.schema_validator import SchemaValidator
-from nekoconf.web_server import WebServer
+from nekoconf.server import NekoConf
 from tests.test_helpers import AsyncObserver, ConfigTestHelper, SyncObserver
 
 
@@ -164,15 +162,40 @@ def validator(sample_schema) -> SchemaValidator:
 
 
 @pytest.fixture
-def web_server(config_manager) -> WebServer:
-    """Create a WebServer instance for testing."""
-    return WebServer(config_manager)
+def web_server(config_manager) -> NekoConf:
+    """Create a NekoConf instance for testing."""
+    return NekoConf(config_manager)
+
+
+@pytest.fixture
+def web_server_with_auth(config_manager) -> NekoConf:
+    """Create a NekoConf instance with authentication for testing."""
+    return NekoConf(config_manager, username="testuser", password="testpass")
 
 
 @pytest.fixture
 def test_client(web_server) -> TestClient:
-    """Create a TestClient instance for the FastAPI app."""
-    return TestClient(web_server.app)
+    """Create a TestClient instance for the FastAPI app without authentication."""
+    client = TestClient(web_server.app)
+    auth_header = f"Basic {base64.b64encode(b'admin:').decode()}"
+    client.headers.update({"Authorization": auth_header})
+    return client
+
+
+@pytest.fixture
+def test_client_with_no_auth(web_server_with_auth) -> TestClient:
+    """Create a TestClient instance for the FastAPI app without authentication."""
+    return TestClient(web_server_with_auth.app)
+
+
+@pytest.fixture
+def test_client_with_auth(web_server_with_auth) -> TestClient:
+    """Create a TestClient instance for the FastAPI app with authentication."""
+    client = TestClient(web_server_with_auth.app)
+    # Add default authentication headers to every request
+    auth_header = f"Basic {base64.b64encode(b'testuser:testpass').decode()}"
+    client.headers.update({"Authorization": auth_header})
+    return client
 
 
 @pytest.fixture

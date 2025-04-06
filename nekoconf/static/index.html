@@ -19,7 +19,10 @@
       rel="icon"
       href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><path d=%22M30 30c-5.5 0-10 4.5-10 10s4.5 10 10 10 10-4.5 10-10-4.5-10-10-10zm40 0c-5.5 0-10 4.5-10 10s4.5 10 10 10 10-4.5 10-10-4.5-10-10-10zM50 5C25.1 5 5 25.1 5 50c0 24.9 20.1 45 45 45s45-20.1 45-45C95 25.1 74.9 5 50 5zm0 80c-19.3 0-35-15.7-35-35s15.7-35 35-35 35 15.7 35 35-15.7 35-35 35zm0-20c-8.3 0-15-6.7-15-15h5c0 5.5 4.5 10 10 10s10-4.5 10-10h5c0 8.3-6.7 15-15 15z%22 fill=%22%23ff6b8b%22/></svg>"
     />
-    <link rel="stylesheet" href="/static/styles.css" />
+    <link
+      rel="stylesheet"
+      href="{{ request.scope.root_path }}/static/styles.css"
+    />
   </head>
   <body>
     <div class="container">
@@ -234,6 +237,6 @@
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.33.0/min/vs/loader.js"></script>
 
     <!-- Application Scripts -->
-    <script src="/static/script.js"></script>
+    <script src="{{ request.scope.root_path }}/static/script.js"></script>
   </body>
 </html>
