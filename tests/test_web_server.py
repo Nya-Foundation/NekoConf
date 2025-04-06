@@ -1,11 +1,12 @@
 """Tests for the web server module."""
 
 import asyncio
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
 from fastapi import WebSocket
 from fastapi.testclient import TestClient
 from fastapi.websockets import WebSocketDisconnect
-from unittest.mock import Mock, patch, AsyncMock
 
 from nekoconf.web_server import WebServer, WebSocketManager
 from tests.test_helpers import ConfigTestHelper

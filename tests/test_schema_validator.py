@@ -1,9 +1,10 @@
 """Tests for the schema validation module."""
 
 import json
-import yaml
-import pytest
 from pathlib import Path
+
+import pytest
+import yaml
 
 from nekoconf.schema_validator import SchemaValidator
 

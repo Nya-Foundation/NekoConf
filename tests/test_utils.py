@@ -1,21 +1,21 @@
 """Tests for the utilities module."""
 
-import pytest
 import asyncio
 from pathlib import Path
 
+import pytest
+
 from nekoconf.utils import (
     create_file_if_not_exists,
-    load_file,
-    save_file,
-    parse_value,
     deep_merge,
     get_nested_value,
-    set_nested_value,
+    load_file,
     notify_observers,
+    parse_value,
+    save_file,
+    set_nested_value,
 )
-
-from tests.test_helpers import SyncObserver, AsyncObserver, create_failing_observer
+from tests.test_helpers import AsyncObserver, SyncObserver, create_failing_observer
 
 
 def test_create_file_if_not_exists(tmp_path):
