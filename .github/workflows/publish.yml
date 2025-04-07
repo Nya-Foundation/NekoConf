@@ -24,7 +24,7 @@ jobs:
     - name: Generate GitHub App Token
       id: generate-token
       # Uses App ID and Private Key secrets to generate a short-lived installation token
-      uses: actions/create-github-app-token@v2.0.2
+      uses: actions/create-github-app-token@v2
       with:
         app_id: ${{ secrets.CI_APP_ID }}
         private_key: ${{ secrets.CI_APP_PRIVATE_KEY }}
@@ -46,6 +46,6 @@ jobs:
     # Configured with PyPI Trusted Publishing (OIDC)
     # https://docs.pypi.org/trusted-publishers/
     - name: Python Semantic Release
-      uses: python-semantic-release/python-semantic-release@v9.21.0
+      uses: python-semantic-release/python-semantic-release@v9
       with:
         github_token: ${{ steps.generate-token.outputs.token }}

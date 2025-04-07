@@ -58,7 +58,7 @@ jobs:
       uses: codecov/codecov-action@v4 # Use v4 or latest
       with:
         files: ./coverage.xml
-        # token: ${{ secrets.CODECOV_TOKEN }} # Often optional for public repos using Codecov App
+        token: ${{ secrets.CODECOV_TOKEN 
         fail_ci_if_error: true # Recommended to fail the build if Codecov upload fails
         name: codecov-${{ matrix.python-version }} # Optional: name the report based on Python version
         flags: unittests
