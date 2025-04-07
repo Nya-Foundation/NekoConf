@@ -58,9 +58,9 @@ jobs:
       uses: codecov/codecov-action@v4 # Use v4 or latest
       with:
         files: ./coverage.xml
-        token: ${{ secrets.CODECOV_TOKEN }} 
         fail_ci_if_error: true # Recommended to fail the build if Codecov upload fails
         name: codecov-${{ matrix.python-version }} # Optional: name the report based on Python version
+        slug: nya-foundation/nekoconf
         flags: unittests
         verbose: true
       # Only upload coverage for one Python version to avoid duplicate reports (optional, but common)
