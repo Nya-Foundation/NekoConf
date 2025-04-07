@@ -36,7 +36,6 @@ jobs:
     # https://docs.pypi.org/trusted-publishers/
     # If using OIDC, you don't need the PYPI_TOKEN env var.
     - name: Python Semantic Release
-      uses: python-semantic-release/python-semantic-release@v8 # Or latest v8.x.x
+      uses: python-semantic-release/python-semantic-release@v9.21.0 # Or latest v8.x.x
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        # Remove PYPI_TOKEN env var if using Trusted Publishing
