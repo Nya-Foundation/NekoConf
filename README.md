@@ -2,9 +2,9 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/nekoconf.svg)](https://pypi.org/project/nekoconf/)
 [![Python versions](https://img.shields.io/pypi/pyversions/nekoconf.svg)](https://pypi.org/project/nekoconf/)
-[![License](https://img.shields.io/github/license/k3scat/nekoconf.svg)](https://github.com/k3scat/nekoconf/blob/main/LICENSE)
-[![Code Coverage](https://codecov.io/gh/k3scat/nekoconf/branch/main/graph/badge.svg)](https://codecov.io/gh/k3scat/nekoconf)
-[![CI/CD](https://github.com/k3scat/nekoconf/actions/workflows/publish.yml/badge.svg)](https://github.com/k3scat/nekoconf/actions/workflows/publish.yml)
+[![License](https://img.shields.io/github/license/nya-foundation/nekoconf.svg)](https://github.com/nya-foundation/nekoconf/blob/main/LICENSE)
+[![Code Coverage](https://codecov.io/gh/nya-foundation/nekoconf/branch/main/graph/badge.svg)](https://codecov.io/gh/nya-foundation/nekoconf)
+[![CI/CD](https://github.com/nya-foundation/nekoconf/actions/workflows/publish.yml/badge.svg)](https://github.com/nya-foundation/nekoconf/actions/workflows/publish.yml)
 
 NekoConf is a configuration management system for Python applications that provides a modern web UI, real-time updates, and a simple API for integration.
 
@@ -358,7 +358,7 @@ curl -u admin:mysecretpassword -X POST http://localhost:8000/api/config/reload
 Set up a development environment:
 
 ```bash
-git clone https://github.com/k3scat/nekoconf.git
+git clone https://github.com/nya-foundation/nekoconf.git
 cd nekoconf
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
