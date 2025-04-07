@@ -105,11 +105,11 @@ version_variable = "nekoconf/__init__.py:__version__"
 branch = "main"
 upload_to_pypi = true
 upload_to_release = true
-build_command = "python -m build"
+build_command = "python -m pip install build && python -m build"
 
 # Changelog settings
 changelog_file = "CHANGELOG.md"
-commit_parser = "angular"
+commit_parser = "conventional"
 changelog_sections = "all"
 
 commit_message = "chore(release): bump version to v{version} [skip ci]"
