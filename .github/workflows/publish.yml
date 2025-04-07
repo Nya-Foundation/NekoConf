@@ -1,40 +1,42 @@
-name: CI - Publish
+# .github/workflows/publish.yml
+name: CI - Publish and Release
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches:
+      - main # Trigger release only on pushes to main
+
+# Prevent multiple concurrent releases
+concurrency:
+  group: ${{ github.workflow }}-release
+  cancel-in-progress: false # Do not cancel releases once started
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-
+    environment:
+      name: Publish and Release
+    permissions:
+      contents: write # Needed to create GitHub releases and tags
+      id-token: write # Needed for PyPI trusted publishing (OIDC) - Recommended!
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-        ref: ${{ github.event.workflow_run.head_sha }}
+        persist-credentials: true
 
+    # Setup Python - semantic-release might need it or specific tools
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-        cache: 'pip'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install build twine
-
-    - name: Build package
-      run: |
-        python -m build
-
-    - name: Publish package to PyPI
-      if: github.event.workflow_run.head_branch == 'main'
-      uses: pypa/gh-action-pypi-publish@release/v1
+    # Recommendation: Configure PyPI Trusted Publishing (OIDC)
+    # https://docs.pypi.org/trusted-publishers/
+    # If using OIDC, you don't need the PYPI_TOKEN env var.
+    - name: Python Semantic Release
+      uses: python-semantic-release/python-semantic-release@v8 # Or latest v8.x.x
       with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}
-        verbose: true
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        # Remove PYPI_TOKEN env var if using Trusted Publishing
