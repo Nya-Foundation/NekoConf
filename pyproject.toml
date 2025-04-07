@@ -99,3 +99,18 @@ exclude_lines = [
     "pass",
     "raise ImportError"
 ]
+
+[tool.semantic_release]
+version_variable = "nekoconf/__init__.py:__version__"
+branch = "main"
+upload_to_pypi = true
+upload_to_release = true
+build_command = "python -m build"
+
+# Changelog settings
+changelog_file = "CHANGELOG.md"
+commit_parser = "angular"
+changelog_sections = "all"
+
+commit_message = "chore(release): bump version to v{version} [skip ci]"
+commit_author = "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
