@@ -20,9 +20,19 @@ jobs:
       contents: write # Needed to create GitHub releases and tags
       id-token: write # Needed for PyPI trusted publishing (OIDC) - Recommended!
     steps:
+      # Generate Token for the GitHub App
+    - name: Generate GitHub App Token
+      id: generate-token
+      # Uses App ID and Private Key secrets to generate a short-lived installation token
+      uses: actions/create-github-app-token@v2
+      with:
+        app_id: ${{ secrets.CI_APP_ID }}
+        private_key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+
     - name: Checkout code
       uses: actions/checkout@v4
       with:
+        token: ${{ steps.generate-token.outputs.token }}
         fetch-depth: 0
         persist-credentials: true
 
@@ -33,15 +43,9 @@ jobs:
         python-version: '3.12'
         cache: 'pip'
 
-    - name: Install build dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install build wheel setuptools
-
-    # Recommendation: Configure PyPI Trusted Publishing (OIDC)
+    # Configured with PyPI Trusted Publishing (OIDC)
     # https://docs.pypi.org/trusted-publishers/
-    # If using OIDC, you don't need the PYPI_TOKEN env var.
     - name: Python Semantic Release
-      uses: python-semantic-release/python-semantic-release@v9.21.0 # Or latest v8.x.x
+      uses: python-semantic-release/python-semantic-release@v9
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+        github_token: ${{ steps.generate-token.outputs.token }}

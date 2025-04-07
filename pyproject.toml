@@ -48,8 +48,8 @@ dev = [
 
 
 [project.urls]
-"Homepage" = "https://github.com/k3scat/nekoconf"
-"Bug Tracker" = "https://github.com/k3scat/nekoconf/issues"
+"Homepage" = "https://github.com/nya-foundation/nekoconf"
+"Bug Tracker" = "https://github.com/nya-foundation/nekoconf/issues"
 
 [project.scripts]
 nekoconf = "nekoconf.cli:main"
