@@ -5,29 +5,29 @@ import json
 import pytest
 import yaml
 
-from nekoconf.schema_validator import SchemaValidator
+from nekoconf.core.validator import NekoSchemaValidator
 
 
-class TestSchemaValidator:
-    """Tests for the SchemaValidator class."""
+class TestNekoValidator:
+    """Tests for the NekoValidator class."""
 
     def test_initialization(self, schema_file, sample_schema):
-        """Test initializing the SchemaValidator with various inputs."""
+        """Test initializing the NekoValidator with various inputs."""
         # Path
-        validator = SchemaValidator(schema_file)
+        validator = NekoSchemaValidator(schema_file)
         assert validator.schema == sample_schema
 
         # Dict
-        validator = SchemaValidator(sample_schema)
+        validator = NekoSchemaValidator(sample_schema)
         assert validator.schema == sample_schema
 
         # String path
-        validator = SchemaValidator(str(schema_file))
+        validator = NekoSchemaValidator(str(schema_file))
         assert validator.schema == sample_schema
 
     def test_validation(self, sample_schema, valid_config, invalid_config):
         """Test validating configurations against schemas."""
-        validator = SchemaValidator(sample_schema)
+        validator = NekoSchemaValidator(sample_schema)
 
         # Valid config
         errors = validator.validate(valid_config)
@@ -52,7 +52,7 @@ class TestSchemaValidator:
         if not example_schema_path or not example_config_path:
             pytest.skip("Example schema or config file not found")
 
-        validator = SchemaValidator(example_schema_path)
+        validator = NekoSchemaValidator(example_schema_path)
 
         # Load the example config
         with open(example_config_path) as f:

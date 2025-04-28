@@ -7,7 +7,7 @@ import threading
 import time
 from pathlib import Path
 
-from nekoconf import ConfigAPI, ConfigManager, NekoConf
+from nekoconf import NekoConfigClient, NekoConfigManager, NekoConfigServer
 
 
 class MyApplication:
@@ -22,10 +22,10 @@ class MyApplication:
         self.config_path = Path(config_path)
 
         # Initialize the configuration manager
-        self.config_manager = ConfigManager(self.config_path)
+        self.config_manager = NekoConfigManager(self.config_path)
 
         # Initialize the configuration API for internal use
-        self.config_api = ConfigAPI(self.config_path)
+        self.config_api = NekoConfigClient(self.config_path)
 
         # Register for configuration changes
         self.config_api.observe(self.on_config_change)
@@ -34,7 +34,7 @@ class MyApplication:
         self.update_app_state()
 
         # Start the web server in a separate thread
-        self.web_server = NekoConf(self.config_manager)
+        self.web_server = NekoConfigServer(self.config_manager)
         self.server_thread = threading.Thread(
             target=self.web_server.run,
             kwargs={"host": "127.0.0.1", "port": 8000},
@@ -94,7 +94,7 @@ def main():
 
     if not config_path.exists():
         # Create a sample configuration file if it doesn't exist
-        from nekoconf.utils import save_file
+        from nekoconf.core.utils import save_file
 
         sample_config = {
             "server": {"host": "localhost", "port": 8080, "debug": True},

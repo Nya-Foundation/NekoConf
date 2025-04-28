@@ -1,8 +1,7 @@
 name: Code Formatting
 
 # run black and isort on your local machine before pushing changes
-# black .
-# isort .
+# isort --profile black .
 
 on:
   pull_request:
@@ -23,11 +22,19 @@ jobs:
       pull-requests: write
       
     steps:
+      - name: Generate GitHub App Token
+        id: generate-token
+        # Uses App ID and Private Key secrets to generate a short-lived installation token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.CI_APP_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.generate-token.outputs.token }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -43,13 +50,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install black isort
 
-      - name: Run isort
+      - name: Run isort with black profile
         run: |
-          isort .
-
-      - name: Run Black
-        run: |
-          black .
+          isort --profile black .
           
       - name: Check for changes
         id: git-check
