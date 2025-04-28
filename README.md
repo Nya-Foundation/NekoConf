@@ -4,7 +4,8 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/nekoconf.svg)](https://pypi.org/project/nekoconf/)
 [![License](https://img.shields.io/github/license/nya-foundation/nekoconf.svg)](https://github.com/nya-foundation/nekoconf/blob/main/LICENSE)
 [![Code Coverage](https://codecov.io/gh/nya-foundation/nekoconf/branch/main/graph/badge.svg)](https://codecov.io/gh/nya-foundation/nekoconf)
-[![CI/CD](https://github.com/nya-foundation/nekoconf/actions/workflows/publish.yml/badge.svg)](https://github.com/nya-foundation/nekoconf/actions/workflows/publish.yml)
+[![CodeQL & Dependencies Scan](https://github.com/nya-foundation/nekoconf/actions/workflows/scan.yml/badge.svg)](https://github.com/nya-foundation/nekoconf/actions/workflows/scan.yml)
+[![CI/CD Builds](https://github.com/nya-foundation/nekoconf/actions/workflows/publish.yml/badge.svg)](https://github.com/nya-foundation/nekoconf/actions/workflows/publish.yml)
 
 NekoConf is a configuration management system for Python applications that provides a modern web UI, real-time updates, and a simple API for integration.
 
