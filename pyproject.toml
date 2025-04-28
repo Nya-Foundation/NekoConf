@@ -69,7 +69,7 @@ where = ["."]  # Root directory for discovery
 include = ["nekoconf*"] # Include nekoconf and its subpackages
 
 [tool.setuptools.package-data]
-"nekoconf" = ["web/static/**/*"] # Updated static files path
+"nekoconf" = ["server/static/**/*"] # Updated static files path
 
 [tool.setuptools.exclude-package-data]
 "*" = ["*.pyc", "*.pyo", "__pycache__/*"]
