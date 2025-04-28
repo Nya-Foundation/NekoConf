@@ -74,7 +74,7 @@ jobs:
           fetch-depth: 0
           
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
+        uses: github/codeql-action/init@v3
         with:
           languages: python
           # Optional: specify queries for additional security checks
