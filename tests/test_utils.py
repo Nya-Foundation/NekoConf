@@ -2,12 +2,11 @@
 
 import pytest
 
-from nekoconf.utils import (
+from nekoconf.core.utils import (
     create_file_if_not_exists,
     deep_merge,
     get_nested_value,
     load_file,
-    notify_observers,
     parse_value,
     save_file,
     set_nested_value,
@@ -176,35 +175,3 @@ def test_set_nested_value():
     # Set to None
     set_nested_value(config, "server.debug", None)
     assert config["server"]["debug"] is None
-
-
-@pytest.mark.asyncio
-async def test_notify_observers():
-    """Test notifying observers with various configurations."""
-    config_data = {"key": "value"}
-
-    # Test with synchronous observer
-    sync_observer = SyncObserver()
-    await notify_observers([sync_observer], config_data)
-    assert sync_observer.called is True
-    assert sync_observer.data == config_data
-
-    # Test with async observer
-    async_observer = AsyncObserver()
-    await notify_observers([async_observer], config_data)
-    assert async_observer.called is True
-    assert async_observer.data == config_data
-
-    # Test with mixed observers
-    sync_observer2 = SyncObserver()
-    async_observer2 = AsyncObserver()
-    await notify_observers([sync_observer2, async_observer2], config_data)
-    assert sync_observer2.called is True
-    assert async_observer2.called is True
-
-    # Test with failing observer
-    failing_observer = create_failing_observer("Test error")
-    safe_observer = SyncObserver()
-    # Exception should be caught, and other observer should still be called
-    await notify_observers([failing_observer, safe_observer], config_data)
-    assert safe_observer.called is True

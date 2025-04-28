@@ -51,7 +51,7 @@ NekoConf is a configuration management system for Python applications that provi
   - Async/await support
 
 - **Authentication Support**
-  - Secure web UI and API with password protection
+  - Secure web UI and API with API key protection
 
 ## Installation
 
@@ -112,10 +112,10 @@ nekoconf validate --config config.yaml --schema schema.json
 ### Python API
 
 ```python
-from nekoconf import ConfigAPI
+from nekoconf import NekoConfigClient
 
 # Initialize with your configuration file
-config = ConfigAPI("config.yaml")
+config = NekoConfigClient("config.yaml")
 
 # Get values with type safety
 host = config.get_str("server.host", "localhost")
@@ -140,7 +140,7 @@ NekoConf supports asynchronous observers for configuration changes:
 
 ```python
 import asyncio
-from nekoconf import ConfigAPI
+from nekoconf import NekoConfigClient
 
 async def async_observer(config_data):
     print("Configuration changed!")
@@ -148,7 +148,7 @@ async def async_observer(config_data):
     print(f"Processed: {config_data}")
 
 async def main():
-    config = ConfigAPI("config.yaml")
+    config = NekoConfigClient("config.yaml")
     config.observe(async_observer)
     
     # Make a change
@@ -165,10 +165,10 @@ asyncio.run(main())
 Validate your configuration against a schema:
 
 ```python
-from nekoconf import ConfigAPI
+from nekoconf import NekoConfigClient
 
 # Initialize with a schema
-config = ConfigAPI("config.yaml", schema_path="schema.json")
+config = NekoConfigClient("config.yaml", schema_path="schema.json")
 
 # Validate configuration
 errors = config.validate()
@@ -181,9 +181,9 @@ if errors:
 Update multiple values at once:
 
 ```python
-from nekoconf import ConfigAPI
+from nekoconf import NekoConfigClient
 
-config = ConfigAPI("config.yaml")
+config = NekoConfigClient("config.yaml")
 
 # Update multiple values with deep merge
 config.update({
@@ -200,10 +200,10 @@ config.update({
 
 ```python
 from fastapi import FastAPI, Depends
-from nekoconf import ConfigAPI
+from nekoconf import NekoConfigClient
 
 app = FastAPI()
-config = ConfigAPI("config.yaml")
+config = NekoConfigClient("config.yaml")
 
 def get_config():
     return config
@@ -217,10 +217,10 @@ def read_config(config=Depends(get_config)):
 
 ```python
 from flask import Flask
-from nekoconf import ConfigAPI
+from nekoconf import NekoConfigClient
 
 app = Flask(__name__)
-config = ConfigAPI("config.yaml")
+config = NekoConfigClient("config.yaml")
 
 # Update Flask config when NekoConf changes
 def sync_flask_config(config_data):
@@ -233,7 +233,7 @@ config.observe(sync_flask_config)
 
 ```python
 from django.apps import AppConfig
-from nekoconf import ConfigAPI
+from nekoconf import NekoConfigClient
 
 class MyAppConfig(AppConfig):
     name = 'myapp'
@@ -241,7 +241,7 @@ class MyAppConfig(AppConfig):
     def ready(self):
         from django.conf import settings
         
-        config = ConfigAPI("config.yaml")
+        config = NekoConfigClient("config.yaml")
         
         # Update Django settings when configuration changes
         def update_settings(config_data):
@@ -254,7 +254,7 @@ class MyAppConfig(AppConfig):
 
 ## API Reference
 
-### ConfigAPI
+### NekoConfigClient
 
 The main interface for applications to interact with configuration:
 
@@ -283,12 +283,12 @@ config.validate()  # Validate against schema
 config.get_all()  # Get entire configuration
 ```
 
-### ConfigManager
+### NekoConfigManager
 
 Low-level class for managing configuration files:
 
 ```python
-manager = ConfigManager("config.yaml")
+manager = NekoConfigManager("config.yaml")
 manager.load()  # Load from file
 manager.save()  # Save to file
 manager.register_observer(callback)  # Add observer
@@ -299,25 +299,24 @@ manager.register_observer(callback)  # Add observer
 Web server for managing configuration through a UI:
 
 ```python
-server = NekoConf(config_manager)
+server = NekoConfigServer(config_manager)
 server.run(host="127.0.0.1", port=8000)
 ```
 
 #### Securing the Web Interface and API
 
-You can secure the web interface and API with password authentication:
+You can secure the web interface and API with an API key:
 
 ```python
-from nekoconf import ConfigManager, NekoConf
+from nekoconf import NekoConfigManager, NekoConfigServer
 
 # Create a config manager
-config = ConfigManager("config.yaml")
+config = NekoConfigManager("config.yaml")
 
-# Create a web server with authentication
-server = NekoConf(
-    config_manager=config,
-    username="admin",  # Default username
-    password="mysecretpassword"  # Set your password here
+# Create a web server with authentication using an API key
+server = NekoConfigServer(
+    config=config,
+    api_key="yoursecretapikey"  # Set your API key here
 )
 
 # Run the server
@@ -327,30 +326,30 @@ server.run(host="0.0.0.0", port=8000)
 Using the command line:
 
 ```bash
-nekoconf server --config=config.yaml --username=admin --password=mysecretpassword
+nekoconf server --config=config.yaml --api-key=yoursecretapikey
 ```
 
-If no password is provided, authentication will be disabled.
+If no `--api-key` is provided, authentication will be disabled.
 
 #### API Access with Authentication
 
-When authentication is enabled, you need to provide credentials for API access:
+When authentication is enabled, you need to provide the API key in the `Authorization` header as a Bearer token:
 
 ```bash
 # Get the entire configuration
-curl -u admin:mysecretpassword http://localhost:8000/api/config
+curl -H "Authorization: Bearer yoursecretapikey" http://localhost:8000/api/config
 
 # Get a specific configuration value
-curl -u admin:mysecretpassword http://localhost:8000/api/config/server/host
+curl -H "Authorization: Bearer yoursecretapikey" http://localhost:8000/api/config/server/host
 
 # Update a configuration value
-curl -u admin:mysecretpassword -X POST \
+curl -H "Authorization: Bearer yoursecretapikey" -X POST \
   -H "Content-Type: application/json" \
   -d '{"value": "new_value"}' \
   http://localhost:8000/api/config/server/host
 
 # Reload the configuration from disk
-curl -u admin:mysecretpassword -X POST http://localhost:8000/api/config/reload
+curl -H "Authorization: Bearer yoursecretapikey" -X POST http://localhost:8000/api/config/reload
 ```
 
 ## Development

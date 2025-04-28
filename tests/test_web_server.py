@@ -6,14 +6,14 @@ import pytest
 from fastapi import WebSocket
 from fastapi.websockets import WebSocketDisconnect
 
-from nekoconf.server import NekoConf, WebSocketManager
+from nekoconf.server.app import NekoConfigServer, NekoWsNotifier
 
 
 class TestWebSocketManager:
     @pytest.mark.asyncio
     async def test_websocket_lifecycle(self):
         """Test the complete lifecycle of WebSocket connections."""
-        manager = WebSocketManager()
+        manager = NekoWsNotifier()
 
         # Create WebSockets
         websocket1 = AsyncMock(spec=WebSocket)
@@ -56,7 +56,7 @@ class TestWebSocketManager:
     @pytest.mark.asyncio
     async def test_broadcast_with_failed_send(self):
         """Test broadcasting with a failed send that should disconnect the client."""
-        manager = WebSocketManager()
+        manager = NekoWsNotifier()
 
         # Create WebSockets - one that will fail on send
         websocket1 = AsyncMock(spec=WebSocket)
@@ -81,9 +81,9 @@ class TestNekoConf:
 
     def test_init(self, config_manager):
         """Test initializing the NekoConf."""
-        server = NekoConf(config_manager)
+        server = NekoConfigServer(config_manager)
 
-        assert server.config_manager == config_manager
+        assert server.config == config_manager
 
         assert hasattr(server, "app")
         # Updated to reflect actual implementation:
@@ -146,7 +146,7 @@ class TestNekoConf:
 
         # Test reload
         # Change in-memory config
-        config_manager.config_data["server"]["host"] = "changed_value"
+        config_manager.data["server"]["host"] = "changed_value"
 
         # Reload via API
         response = test_client.post("/api/config/reload")

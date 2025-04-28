@@ -17,16 +17,16 @@ from typing import (
     overload,
 )
 
-from nekoconf.config_manager import ConfigManager
+from nekoconf.core.config import NekoConfigManager
 
-logger = logging.getLogger(__name__)
+from .utils import getLogger
 
 # Type variable for type hints
 T = TypeVar("T")
 
 
-class ConfigAPI:
-    """API for consuming configuration data from other applications.
+class NekoConfigClient:
+    """A helper class for accessing and managing NekoConf configurations.
 
     This class provides methods for external applications to access and observe
     configuration data managed by NekoConf.
@@ -36,6 +36,7 @@ class ConfigAPI:
         self,
         config_path: Union[str, Path],
         schema_path: Optional[Union[str, Path]] = None,
+        logger: Optional[logging.Logger] = None,
     ):
         """Initialize the configuration API.
 
@@ -43,9 +44,12 @@ class ConfigAPI:
             config_path: Path to the configuration file
             schema_path: Path to the schema file for validation (optional)
         """
-        self.config_manager = ConfigManager(config_path, schema_path)
-        self.config_manager.load()
-        logger.debug(f"Initialized ConfigAPI with {config_path}")
+        self.logger = logger or getLogger(__name__)
+
+        self.config = NekoConfigManager(config_path, schema_path, self.logger)
+        self.config.load()
+
+        self.logger.debug(f"Initialized NekoConfigClient with {config_path}")
 
     def get(self, key: Optional[str] = None, default: Any = None) -> Any:
         """Get a configuration value.
@@ -57,7 +61,7 @@ class ConfigAPI:
         Returns:
             The configuration value or default if not found
         """
-        return self.config_manager.get(key, default)
+        return self.config.get(key, default)
 
     @overload
     def get_typed(self, key: str, default: None = None) -> Any: ...
@@ -82,7 +86,7 @@ class ConfigAPI:
                 value_type = type(default)
                 return value_type(value)
             except (ValueError, TypeError):
-                logger.warning(
+                self.logger.warning(
                     f"Failed to convert '{key}' to type {type(default).__name__}, using as-is"
                 )
         return value
@@ -103,7 +107,7 @@ class ConfigAPI:
         try:
             return int(value)
         except (ValueError, TypeError):
-            logger.warning(f"Value for '{key}' is not a valid integer, using default")
+            self.logger.warning(f"Value for '{key}' is not a valid integer, using default")
             return default
 
     def get_float(self, key: str, default: Optional[float] = None) -> Optional[float]:
@@ -122,7 +126,7 @@ class ConfigAPI:
         try:
             return float(value)
         except (ValueError, TypeError):
-            logger.warning(f"Value for '{key}' is not a valid float, using default")
+            self.logger.warning(f"Value for '{key}' is not a valid float, using default")
             return default
 
     def get_bool(self, key: str, default: Optional[bool] = None) -> Optional[bool]:
@@ -153,7 +157,7 @@ class ConfigAPI:
         try:
             return bool(int(value))
         except (ValueError, TypeError):
-            logger.warning(f"Value for '{key}' is not a valid boolean, using default")
+            self.logger.warning(f"Value for '{key}' is not a valid boolean, using default")
             return default
 
     def get_str(self, key: str, default: Optional[str] = None) -> Optional[str]:
@@ -188,7 +192,7 @@ class ConfigAPI:
         if isinstance(value, list):
             return value
 
-        logger.warning(f"Value for '{key}' is not a list, using default")
+        self.logger.warning(f"Value for '{key}' is not a list, using default")
         return default
 
     def get_dict(self, key: str, default: Optional[Dict] = None) -> Optional[Dict]:
@@ -208,7 +212,7 @@ class ConfigAPI:
         if isinstance(value, dict):
             return value
 
-        logger.warning(f"Value for '{key}' is not a dictionary, using default")
+        self.logger.warning(f"Value for '{key}' is not a dictionary, using default")
         return default
 
     def set(self, key: str, value: Any) -> None:
@@ -218,7 +222,7 @@ class ConfigAPI:
             key: The configuration key (dot notation for nested values)
             value: The value to set
         """
-        self.config_manager.set(key, value)
+        self.config.set(key, value)
 
     def delete(self, key: str) -> bool:
         """Delete a configuration value.
@@ -229,9 +233,7 @@ class ConfigAPI:
         Returns:
             True if the key was deleted, False if it didn't exist
         """
-        result = self.config_manager.delete(key)
-        if result:
-            self.config_manager.save()
+        result = self.config.delete(key)
         return result
 
     def update(self, data: Dict[str, Any], deep_merge: bool = True) -> None:
@@ -241,8 +243,7 @@ class ConfigAPI:
             data: Dictionary of configuration values to update
             deep_merge: Whether to perform deep merge for nested dictionaries
         """
-        self.config_manager.update(data, deep_merge)
-        self.config_manager.save()
+        self.config.update(data, deep_merge)
 
     def get_all(self) -> Dict[str, Any]:
         """Get the entire configuration.
@@ -250,7 +251,7 @@ class ConfigAPI:
         Returns:
             The complete configuration data
         """
-        return self.config_manager.get()
+        return self.config.get()
 
     def observe(self, observer: Callable[[Dict[str, Any]], Any]) -> None:
         """Register an observer function to be called when configuration changes.
@@ -260,7 +261,7 @@ class ConfigAPI:
         Args:
             observer: Function or coroutine to call with updated configuration data
         """
-        self.config_manager.register_observer(observer)
+        self.config.register_observer(observer)
 
     def stop_observing(self, observer: Callable[[Dict[str, Any]], Any]) -> None:
         """Unregister an observer function.
@@ -268,7 +269,7 @@ class ConfigAPI:
         Args:
             observer: Function or coroutine to remove from observers
         """
-        self.config_manager.unregister_observer(observer)
+        self.config.unregister_observer(observer)
 
     def reload(self) -> Dict[str, Any]:
         """Reload configuration from file.
@@ -276,7 +277,7 @@ class ConfigAPI:
         Returns:
             The reloaded configuration data
         """
-        return self.config_manager.load()
+        return self.config.load()
 
     def validate(self) -> List[str]:
         """Validate configuration against schema.
@@ -284,4 +285,4 @@ class ConfigAPI:
         Returns:
             List of validation error messages (empty if valid)
         """
-        return self.config_manager.validate()
+        return self.config.validate()

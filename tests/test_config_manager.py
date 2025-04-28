@@ -1,21 +1,21 @@
-"""Tests for the ConfigManager class."""
+"""Tests for the NekoConfig class."""
 
 from pathlib import Path
 
 import pytest
 
-from nekoconf.config_manager import ConfigManager
+from nekoconf.core.config import NekoConfigManager
 from tests.test_helpers import wait_for_observers
 
 
-class TestConfigManagerBase:
-    """Base tests for ConfigManager initialization and basic functionality."""
+class TestNekoConfigBase:
+    """Base tests for NekoConfigManager initialization and basic functionality."""
 
     def test_initialization(self):
         """Test various initialization scenarios."""
         # String path
         path = "examples/sample_config.yaml"
-        manager = ConfigManager(path)
+        manager = NekoConfigManager(path)
         assert isinstance(manager.config_path, Path)
         assert str(manager.config_path) == path
         assert manager.schema_path is None
@@ -23,28 +23,43 @@ class TestConfigManagerBase:
         # Path object
         path = Path("examples/sample_config.yaml")
         schema_path = Path("examples/sample_schema.json")
-        manager = ConfigManager(path, schema_path)
+        manager = NekoConfigManager(path, schema_path)
         assert manager.config_path == path
         assert manager.schema_path == schema_path
 
-    def test_load_and_save(self, config_manager, sample_config, config_file):
+    def test_load_and_save(
+        self, config_manager: NekoConfigManager, sample_config, complex_sample_config, config_file
+    ):
         """Test loading and saving configuration."""
         # Test loading
-        assert config_manager.config_data == sample_config
+        assert config_manager.data == sample_config
+        config_manager.data = complex_sample_config
+
+        success = config_manager.save()
+        assert success is True
+
         loaded_config = config_manager.load()
-        assert loaded_config == sample_config
+        assert loaded_config == complex_sample_config
 
         # Test saving with modifications
         config_manager.set("server.port", 9000)
         config_manager.set("new_setting", "value")
+
         success = config_manager.save()
         assert success is True
 
         # Verify file was updated
-        new_manager = ConfigManager(config_file)
-        new_manager.load()
+        new_manager = NekoConfigManager(config_file)
+
+        new_manager.set("server.port", 9000)
+        new_manager.set("new_setting", "value")
+
         assert new_manager.get("server.port") == 9000
         assert new_manager.get("new_setting") == "value"
+
+        new_manager.load()
+        assert new_manager.get("server.port") == 8000
+        assert new_manager.get("new_setting") == None
 
     def test_get_operations(self, config_manager, sample_config):
         """Test various get operations."""
@@ -75,7 +90,7 @@ class TestConfigManagerBase:
         # Test delete
         success = config_manager.delete("server.debug")
         assert success is True
-        assert "debug" not in config_manager.config_data["server"]
+        assert "debug" not in config_manager.data["server"]
 
         # Test failed delete
         success = config_manager.delete("nonexistent.key")
@@ -93,27 +108,29 @@ class TestConfigManagerBase:
         assert config_manager.get("new_section.key") == "value"
 
 
-class TestConfigManagerObservers:
-    """Tests for the observer functionality of ConfigManager."""
+class TestNekoConfigObservers:
+    """Tests for the observer functionality of NekoConfig."""
 
     def test_observer_registration(self, config_manager, sync_observer, async_observer):
         """Test registering and unregistering observers."""
         # Register
         config_manager.register_observer(sync_observer)
-        assert sync_observer in config_manager.observers
+        assert sync_observer in config_manager.observers_sync
 
         config_manager.register_observer(async_observer)
-        assert async_observer in config_manager.observers
+        assert async_observer in config_manager.observers_async
 
         # Unregister
         config_manager.unregister_observer(sync_observer)
-        assert sync_observer not in config_manager.observers
+        assert sync_observer not in config_manager.observers_sync
 
         config_manager.unregister_observer(async_observer)
-        assert async_observer not in config_manager.observers
+        assert async_observer not in config_manager.observers_async
 
     @pytest.mark.asyncio
-    async def test_observer_notification(self, config_manager, sync_observer, async_observer):
+    async def test_observer_notification(
+        self, config_manager: NekoConfigManager, sync_observer, async_observer
+    ):
         """Test that observers are notified of configuration changes."""
         # Register both types of observers
         config_manager.register_observer(sync_observer)
@@ -121,6 +138,7 @@ class TestConfigManagerObservers:
 
         # Make changes
         config_manager.set("server.port", 9000)
+        config_manager.save()
 
         # For sync observers, the notification happens immediately
         assert sync_observer.called is True
@@ -143,8 +161,8 @@ class TestConfigManagerObservers:
         assert async_observer.data["database"]["name"] == "new_db"
 
 
-class TestConfigManagerValidation:
-    """Tests for the validation functionality of ConfigManager."""
+class TestNekoConfigValidation:
+    """Tests for the validation functionality of NekoConfig."""
 
     def test_validation(self, config_manager_with_schema):
         """Test validation with a schema."""

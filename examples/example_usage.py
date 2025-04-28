@@ -6,7 +6,7 @@ Example script demonstrating how to use NekoConf in a Python application.
 import time
 from pathlib import Path
 
-from nekoconf import ConfigAPI
+from nekoconf import NekoConfigClient
 
 
 def on_config_change(config_data):
@@ -22,8 +22,8 @@ def main():
 
     print(f"Using configuration file: {config_path}")
 
-    # Initialize the ConfigAPI
-    config_api = ConfigAPI(config_path)
+    # Initialize the NekoConfigClient
+    config_api = NekoConfigClient(config_path)
 
     # Register the callback to be notified of configuration changes
     config_api.observe(on_config_change)

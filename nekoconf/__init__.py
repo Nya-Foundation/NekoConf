@@ -1,14 +1,17 @@
 """NekoConf - Configuration management with web UI."""
 
-import logging
+# Import public API elements from subpackages
+from nekoconf.core.config import NekoConfigManager
+from nekoconf.core.helper import NekoConfigClient
+from nekoconf.core.validator import NekoSchemaValidator
+from nekoconf.server.app import NekoConfigServer
 
-from nekoconf.api import ConfigAPI
-from nekoconf.config_manager import ConfigManager
-from nekoconf.schema_validator import SchemaValidator
-from nekoconf.server import NekoConf
+from ._version import __version__
 
-__version__ = "0.1.4"
-__all__ = ["ConfigManager", "NekoConf", "ConfigAPI", "SchemaValidator"]
-
-# Set up null handler to avoid "No handler found" warnings
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+__all__ = [
+    "NekoConfigManager",
+    "NekoConfigServer",
+    "NekoConfigClient",
+    "NekoSchemaValidator",
+    "__version__",
+]
