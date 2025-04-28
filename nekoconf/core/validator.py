@@ -9,7 +9,7 @@ import yaml
 from jsonschema import validators
 
 
-class SchemaValidator:
+class NekoSchemaValidator:
     """Validates configuration data against a schema using jsonschema."""
 
     def __init__(self, schema: Union[Dict[str, Any], str, Path]):
@@ -30,14 +30,14 @@ class SchemaValidator:
         self.validator = validators.validator_for(self.schema)(self.schema)
 
     @classmethod
-    def from_file(cls, schema_path: Union[str, Path]) -> "SchemaValidator":
+    def from_file(cls, schema_path: Union[str, Path]) -> "NekoSchemaValidator":
         """Create a schema validator from a schema file.
 
         Args:
             schema_path: Path to the schema file (JSON or YAML format)
 
         Returns:
-            A SchemaValidator instance
+            A NekoValidator instance
 
         Raises:
             FileNotFoundError: If the schema file doesn't exist

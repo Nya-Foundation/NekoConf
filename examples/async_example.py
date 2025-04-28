@@ -6,10 +6,9 @@ Example demonstrating how to use NekoConf with async/await in a Python applicati
 import asyncio
 import logging
 import signal
-import sys
 from pathlib import Path
 
-from nekoconf import ConfigAPI
+from nekoconf import NekoConfigClient
 
 # Configure logging
 logging.basicConfig(
@@ -58,29 +57,29 @@ async def main():
 
     logger.info(f"Using configuration file: {config_path}")
 
-    # Initialize the ConfigAPI
-    config_api = ConfigAPI(config_path)
+    # Initialize the NekoConfigClient
+    helper = NekoConfigClient(config_path)
 
     # Register both sync and async callbacks
-    config_api.observe(on_config_change_async)
-    config_api.observe(on_config_change_sync)
+    helper.observe(on_config_change_async)
+    helper.observe(on_config_change_sync)
 
     logger.info("Current configuration:")
-    logger.info(config_api.get_all())
+    logger.info(helper.get_all())
 
     # Get specific configuration values with type safety
-    server_host = config_api.get_str("server.host")
-    server_port = config_api.get_int("server.port")
-    debug_mode = config_api.get_bool("server.debug")
+    server_host = helper.get_str("server.host")
+    server_port = helper.get_int("server.port")
+    debug_mode = helper.get_bool("server.debug")
 
     logger.info(f"Server configuration: {server_host}:{server_port} (Debug: {debug_mode})")
 
     # Type-safe access with defaults
-    timeout = config_api.get_int("server.timeout", 30)
+    timeout = helper.get_int("server.timeout", 30)
     logger.info(f"Server timeout: {timeout} seconds (default value)")
 
     # Start background task to periodically check config
-    check_task = asyncio.create_task(periodic_config_check(config_api))
+    check_task = asyncio.create_task(periodic_config_check(helper))
 
     # Setup clean shutdown
     loop = asyncio.get_running_loop()
@@ -103,8 +102,8 @@ async def main():
         logger.info("Main task cancelled")
     finally:
         # Unregister the observers when done
-        config_api.stop_observing(on_config_change_async)
-        config_api.stop_observing(on_config_change_sync)
+        helper.stop_observing(on_config_change_async)
+        helper.stop_observing(on_config_change_sync)
         logger.info("Observers unregistered, exiting...")
 
 

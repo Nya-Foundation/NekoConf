@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from nekoconf.utils import notify_observers
+from nekoconf.core.utils import notify_observers
 from tests.test_helpers import (
     create_async_failing_observer,
     create_failing_observer,
@@ -87,15 +87,113 @@ class TestAsyncOperations:
             async_called = True
             assert data == config_data
 
-        # Test notification
-        await notify_observers([sync_observer, async_observer], config_data)
+        # Call notify_observers with both sync and async observers
+        observers = [sync_observer, async_observer]
+        await notify_observers(observers, config_data)
 
         # Both observers should have been called
         assert sync_called
         assert async_called
 
-        # Test with failing observer
-        failing_observer = create_failing_observer()
+    @pytest.mark.asyncio
+    async def test_notify_observers_with_none_value(self):
+        """Test notify_observers with None as an observer."""
+        config_data = {"test": "data"}
+        results = []
 
-        # This should not raise even though one observer fails
-        await notify_observers([failing_observer, sync_observer], config_data)
+        def valid_observer(data):
+            results.append("called")
+
+        # Mix with None value
+        observers = [valid_observer, None, valid_observer]
+
+        # Should skip None values without errors
+        with pytest.raises(RuntimeError) as excinfo:
+            await notify_observers(observers, config_data)
+
+        assert "NoneType" in str(excinfo.value) or "not callable" in str(excinfo.value)
+        assert len(results) == 1  # First observer was called before the error
+
+    @pytest.mark.asyncio
+    async def test_notify_observers_with_invalid_callable(self):
+        """Test notify_observers with invalid callables."""
+        config_data = {"test": "data"}
+
+        # Test with non-callable object
+        invalid_observer = "not_a_function"
+
+        with pytest.raises(RuntimeError) as excinfo:
+            await notify_observers([invalid_observer], config_data)
+
+        assert "not callable" in str(excinfo.value).lower() or "str" in str(excinfo.value)
+
+    @pytest.mark.asyncio
+    async def test_notify_observers_with_wrong_signature(self):
+        """Test notify_observers with observer that has wrong signature."""
+        config_data = {"test": "data"}
+
+        # Observer with no parameters
+        def no_param_observer():
+            pass
+
+        # Observer with too many parameters
+        def too_many_params_observer(data, extra_param):
+            pass
+
+        # Test with wrong signature observers
+        with pytest.raises(RuntimeError) as excinfo:
+            await notify_observers([no_param_observer], config_data)
+
+        # Check if the error message contains appropriate text about argument/parameters
+        assert "takes 0 positional arguments but 1 was given" in str(excinfo.value)
+
+        with pytest.raises(RuntimeError) as excinfo:
+            await notify_observers([too_many_params_observer], config_data)
+
+        # Check if the error message contains appropriate text about argument/parameters
+        assert "missing" in str(excinfo.value).lower() or "argument" in str(excinfo.value).lower()
+
+    @pytest.mark.asyncio
+    async def test_notify_observers_execution_order(self):
+        """Test that notify_observers preserves execution order for sync observers."""
+        config_data = {"test": "data"}
+        execution_order = []
+
+        def observer1(data):
+            execution_order.append(1)
+
+        def observer2(data):
+            execution_order.append(2)
+
+        def observer3(data):
+            execution_order.append(3)
+
+        # Notify in specific order
+        await notify_observers([observer1, observer2, observer3], config_data)
+
+        # Sync observers should execute in the order they were provided
+        assert execution_order == [1, 2, 3]
+
+    @pytest.mark.asyncio
+    async def test_notify_observers_continue_after_error(self):
+        """Test that notify_observers stops on first error and doesn't call remaining observers."""
+        config_data = {"test": "data"}
+        called = []
+
+        def good_observer1(data):
+            called.append("good1")
+
+        def failing_observer(data):
+            called.append("failing")
+            raise ValueError("Deliberate test failure")
+
+        def good_observer2(data):
+            called.append("good2")
+
+        # This should raise on the failing observer
+        with pytest.raises(RuntimeError):
+            await notify_observers([good_observer1, failing_observer, good_observer2], config_data)
+
+        # Should have called first observer and failing observer, but not the last
+        assert called == ["good1", "failing"]
+        assert "good2" not in called

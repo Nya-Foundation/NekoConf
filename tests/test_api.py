@@ -1,29 +1,29 @@
-"""Tests for the ConfigAPI class."""
+"""Tests for the NekoConfigClient class."""
 
 import pytest
 
-from nekoconf.api import ConfigAPI
+from nekoconf.core.helper import NekoConfigClient
 
 
-class TestConfigAPI:
-    """Tests for the ConfigAPI class."""
+class TestNekoConfigClient:
+    """Tests for the NekoConfigClient class."""
 
     def test_initialization(self, config_file, schema_file):
-        """Test initializing ConfigAPI with various arguments."""
+        """Test initializing NekoConfigClient with various arguments."""
         # Basic initialization
-        api = ConfigAPI(config_file)
-        assert api.config_manager.config_path == config_file
-        assert api.config_manager.schema_path is None
+        api = NekoConfigClient(config_file)
+        assert api.config.config_path == config_file
+        assert api.config.schema_path is None
 
         # With schema
-        api = ConfigAPI(config_file, schema_file)
-        assert api.config_manager.config_path == config_file
-        assert api.config_manager.schema_path == schema_file
+        api = NekoConfigClient(config_file, schema_file)
+        assert api.config.config_path == config_file
+        assert api.config.schema_path == schema_file
 
         # With string paths
-        api = ConfigAPI(str(config_file), str(schema_file))
-        assert api.config_manager.config_path == config_file
-        assert api.config_manager.schema_path == schema_file
+        api = NekoConfigClient(str(config_file), str(schema_file))
+        assert api.config.config_path == config_file
+        assert api.config.schema_path == schema_file
 
     @pytest.mark.parametrize(
         "key,expected,default",
@@ -71,7 +71,7 @@ class TestConfigAPI:
     def test_complex_getters(self, config_api, complex_config_file):
         """Test getting complex configuration values."""
         # Create API with complex config
-        api = ConfigAPI(complex_config_file)
+        api = NekoConfigClient(complex_config_file)
 
         # Float values
         value = api.get_float("server.timeout")
@@ -113,7 +113,7 @@ class TestConfigAPI:
         """Test registering and unregistering observer functions."""
         # Register
         config_api.observe(sync_observer)
-        assert sync_observer in config_api.config_manager.observers
+        assert sync_observer in config_api.config.observers
 
         # Should be notified on changes
         config_api.set("test.key", "value")
@@ -122,7 +122,7 @@ class TestConfigAPI:
 
         # Unregister
         config_api.stop_observing(sync_observer)
-        assert sync_observer not in config_api.config_manager.observers
+        assert sync_observer not in config_api.config.observers
 
     def test_reload(self, config_api, config_file):
         """Test reloading configuration."""

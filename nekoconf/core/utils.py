@@ -3,19 +3,81 @@
 This module provides common utility functions used across the NekoConf package.
 """
 
-import asyncio
 import inspect
 import json
 import logging
 import os
+import traceback
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, List, Union
 
 import yaml
+import colorlog
 
-logger = logging.getLogger(__name__)
 
-T = TypeVar("T")  # Define type variable for generic functions
+def getLogger(
+    name: str,
+    level: Union[int, str] = logging.INFO,
+    format_str: str = "%(log_color)s%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers: List[logging.Handler] = None,
+) -> logging.Logger:
+    """Create and configure a logger with sensible defaults and colored output.
+
+    This function creates a new logger or retrieves an existing one with the
+    given name, then configures it with the specified log level and format.
+
+    Args:
+        name: The name of the logger, typically the module name
+        level: Logging level (either logging constant or string name)
+        format_str: Message format string for the logger
+        handlers: Optional list of handlers to add to the logger
+
+    Returns:
+        Configured logger instance
+    """
+    # Convert string level to int if necessary
+    if isinstance(level, str):
+        numeric_level = getattr(logging, level.upper(), None)
+        if not isinstance(numeric_level, int):
+            raise ValueError(f"Invalid log level: {level}")
+        level = numeric_level
+
+    # Get or create logger
+    logger = logging.getLogger(name)
+
+    # Only configure if it's a new logger (no handlers set up)
+    if not logger.handlers:
+        logger.setLevel(level)
+
+        # Create default handler if none provided
+        if not handlers:
+            handler = colorlog.StreamHandler()
+            handler.setLevel(level)
+
+            # Define color scheme for different log levels
+            color_formatter = colorlog.ColoredFormatter(
+                format_str,
+                log_colors={
+                    "DEBUG": "cyan",
+                    "INFO": "green",
+                    "WARNING": "yellow",
+                    "ERROR": "red",
+                    "CRITICAL": "red,bg_white",
+                },
+            )
+            handler.setFormatter(color_formatter)
+            handlers = [handler]
+
+        # Add all handlers to the logger
+        for handler in handlers:
+            logger.addHandler(handler)
+
+        # Prevent propagation to the root logger to avoid duplicate logs
+        logger.propagate = False
+
+    logger.info(f"Logger '{name}' initialized with level {logging.getLevelName(logger.level)}")
+
+    return logger
 
 
 def create_file_if_not_exists(file_path: Union[str, Path]) -> None:
@@ -31,9 +93,7 @@ def create_file_if_not_exists(file_path: Union[str, Path]) -> None:
     try:
         file_path.parent.mkdir(parents=True, exist_ok=True)  # Create parent dirs
         file_path.touch()  # Create the file
-        logger.info(f"Created file: {file_path}")
     except Exception as e:
-        logger.error(f"Failed to create file {file_path}: {e}")
         raise IOError(f"Failed to create file: {e}") from e
 
 
@@ -52,7 +112,6 @@ def load_file(file_path: Union[str, Path]) -> Dict[str, Any]:
     """
     file_path = Path(file_path)
     if not file_path.exists():
-        logger.warning(f"File does not exist: {file_path}")
         return {}
 
     try:
@@ -225,13 +284,19 @@ def set_nested_value(data: Dict[str, Any], key: str, value: Any) -> None:
 async def notify_observers(
     observers: List[Callable[[Dict[str, Any]], Any]],
     config_data: Dict[str, Any],
+    logger: logging.Logger = None,
 ) -> None:
     """Notify observers of configuration changes.
 
     Args:
         observers: List of observer functions to call
         config_data: Configuration data to pass to observers
+        logger: Optional logger to use for error reporting
+
+    Raises:
+        RuntimeError: If an observer raises an exception
     """
+    logger = logger or getLogger(__name__)
     for observer in observers:
         try:
             # Check if the observer is an async function or has async __call__
@@ -240,7 +305,9 @@ async def notify_observers(
             else:
                 observer(config_data)
         except Exception as e:
-            logger.error(f"Error in observer {observer.__name__}: {e}")
+            error_message = f"Error notifying observer {observer}: {e}, traceback: {traceback.format_exc() if logger.level <= logging.DEBUG else ''}"
+            logger.error(error_message)
+            raise RuntimeError(error_message) from e
 
 
 def is_async_callable(func):

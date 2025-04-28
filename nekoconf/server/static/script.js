@@ -110,7 +110,7 @@ const wsService = {
         if (type === "config") {
           configData = configUpdate;
           updateUIWithNewConfig();
-          notify.success("Configuration updated 🐱");
+          notify.success("Configuration loaded 🐱");
         }
       } catch (error) {
         console.error("WebSocket message error:", error);

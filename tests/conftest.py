@@ -1,17 +1,22 @@
 """Shared test fixtures for NekoConf tests."""
 
-import base64
+import os
+import tempfile
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pytest
 from fastapi.testclient import TestClient
 
-from nekoconf.api import ConfigAPI
-from nekoconf.config_manager import ConfigManager
-from nekoconf.schema_validator import SchemaValidator
-from nekoconf.server import NekoConf
+from nekoconf.core.helper import NekoConfigClient
+from nekoconf.core.config import NekoConfigManager
+from nekoconf.core.validator import NekoSchemaValidator
+from nekoconf.server.app import NekoConfigServer
 from tests.test_helpers import AsyncObserver, ConfigTestHelper, SyncObserver
+
+# Test constants
+TEST_API_KEY = "test-api-key"
+TEST_TIMEOUT = 0.2
 
 
 # Example file fixtures - session scoped for efficiency
@@ -138,48 +143,116 @@ def schema_file(tmp_path, sample_schema) -> Path:
     return ConfigTestHelper.create_temp_schema(tmp_path, sample_schema)
 
 
+@pytest.fixture
+def test_config_file():
+    """Fixture providing a temporary configuration file."""
+    fd, path = tempfile.mkstemp(suffix=".json")
+    os.close(fd)
+
+    # Yield the path for use in the test
+    yield Path(path)
+
+    # Cleanup after the test
+    try:
+        os.unlink(path)
+    except (OSError, PermissionError):
+        pass
+
+
+@pytest.fixture
+def error_config() -> Dict[str, Any]:
+    """Create an invalid configuration that should raise multiple validation errors."""
+    return {
+        "server": {
+            "host": 123,  # Should be string
+            "port": "8000",  # Should be integer
+            "debug": "invalid",  # Should be boolean
+        },
+        "database": {
+            "url": "not-a-url",  # Invalid URL format
+            "pool_size": -1,  # Should be positive
+            "timeout": "invalid",  # Should be number
+        },
+    }
+
+
+@pytest.fixture
+def edge_case_config() -> Dict[str, Any]:
+    """Create a configuration with edge cases for testing."""
+    return {
+        "empty_dict": {},
+        "empty_list": [],
+        "null_value": None,
+        "nested": {"very": {"deep": {"structure": True}}},
+        "special_chars": "!@#$%^&*()",
+        "unicode": "こんにちは",
+        "numbers": {"zero": 0, "negative": -1, "float": 3.14159, "scientific": 1e-10},
+    }
+
+
+@pytest.fixture
+def error_schema() -> Dict[str, Any]:
+    """Create an invalid schema for testing error handling."""
+    return {
+        "type": "invalid_type",
+        "properties": {
+            "test": {
+                "type": "string",
+                "pattern": "[",  # Invalid regex pattern
+            }
+        },
+    }
+
+
+@pytest.fixture
+def test_observer_results() -> List[Dict[str, Any]]:
+    """Create a list to track observer notifications."""
+    return []
+
+
 # Core component fixtures
 @pytest.fixture
-def config_manager(config_file) -> ConfigManager:
-    """Create a ConfigManager instance for testing."""
-    manager = ConfigManager(config_file)
+def config_manager(test_config_file, sample_config) -> NekoConfigManager:
+    """Create a NekoConfig instance for testing."""
+
+    # Initialize the config manager with the test file
+    config = NekoConfigManager(config_path=test_config_file)
+    config.update(sample_config)
+    config.save()
+
+    return config
+
+
+@pytest.fixture
+def config_manager_with_schema(config_file, schema_file) -> NekoConfigManager:
+    """Create a NekoConfig instance with schema for testing."""
+    manager = NekoConfigManager(config_file, schema_file)
     manager.load()
     return manager
 
 
 @pytest.fixture
-def config_manager_with_schema(config_file, schema_file) -> ConfigManager:
-    """Create a ConfigManager instance with schema for testing."""
-    manager = ConfigManager(config_file, schema_file)
-    manager.load()
-    return manager
+def validator(sample_schema) -> NekoSchemaValidator:
+    """Create a NekoValidator instance."""
+    return NekoSchemaValidator(sample_schema)
 
 
 @pytest.fixture
-def validator(sample_schema) -> SchemaValidator:
-    """Create a SchemaValidator instance."""
-    return SchemaValidator(sample_schema)
-
-
-@pytest.fixture
-def web_server(config_manager) -> NekoConf:
+def web_server(config_manager) -> NekoConfigServer:
     """Create a NekoConf instance for testing."""
-    return NekoConf(config_manager)
+    return NekoConfigServer(config_manager)
 
 
 @pytest.fixture
-def web_server_with_auth(config_manager) -> NekoConf:
+def web_server_with_auth(config_manager) -> NekoConfigServer:
     """Create a NekoConf instance with authentication for testing."""
-    return NekoConf(config_manager, username="testuser", password="testpass")
+    return NekoConfigServer(config_manager, api_key="test-api-key")
 
 
 @pytest.fixture
 def test_client(web_server) -> TestClient:
     """Create a TestClient instance for the FastAPI app without authentication."""
-    client = TestClient(web_server.app)
-    auth_header = f"Basic {base64.b64encode(b'admin:').decode()}"
-    client.headers.update({"Authorization": auth_header})
-    return client
+    return TestClient(web_server.app)
 
 
 @pytest.fixture
@@ -193,21 +266,20 @@ def test_client_with_auth(web_server_with_auth) -> TestClient:
     """Create a TestClient instance for the FastAPI app with authentication."""
     client = TestClient(web_server_with_auth.app)
     # Add default authentication headers to every request
-    auth_header = f"Basic {base64.b64encode(b'testuser:testpass').decode()}"
-    client.headers.update({"Authorization": auth_header})
+    client.headers.update({"Authorization": "test-api-key"})
     return client
 
 
 @pytest.fixture
-def config_api(config_file) -> ConfigAPI:
-    """Create a ConfigAPI instance for testing."""
-    return ConfigAPI(config_file)
+def config_api(config_file) -> NekoConfigClient:
+    """Create a NekoConfigClient instance for testing."""
+    return NekoConfigClient(config_file)
 
 
 @pytest.fixture
-def config_api_with_schema(config_file, schema_file) -> ConfigAPI:
-    """Create a ConfigAPI instance with schema for testing."""
-    return ConfigAPI(config_file, schema_file)
+def config_api_with_schema(config_file, schema_file) -> NekoConfigClient:
+    """Create a NekoConfigClient instance with schema for testing."""
+    return NekoConfigClient(config_file, schema_file)
 
 
 # Observer fixtures

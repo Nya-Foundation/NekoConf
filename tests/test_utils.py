@@ -2,7 +2,7 @@
 
 import pytest
 
-from nekoconf.utils import (
+from nekoconf.core.utils import (
     create_file_if_not_exists,
     deep_merge,
     get_nested_value,
@@ -205,6 +205,9 @@ async def test_notify_observers():
     # Test with failing observer
     failing_observer = create_failing_observer("Test error")
     safe_observer = SyncObserver()
-    # Exception should be caught, and other observer should still be called
-    await notify_observers([failing_observer, safe_observer], config_data)
-    assert safe_observer.called is True
+
+    # Exception should be raised with a clear error message
+    with pytest.raises(RuntimeError) as excinfo:
+        await notify_observers([failing_observer, safe_observer], config_data)
+
+    assert "Test error" in str(excinfo.value)

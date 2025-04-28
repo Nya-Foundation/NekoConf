@@ -7,9 +7,10 @@ in YAML and JSON formats.
 import asyncio
 import logging
 from pathlib import Path
+import traceback
 from typing import Any, Callable, Dict, List, Optional, Set, Union
 
-from nekoconf.utils import (
+from .utils import (  # Relative import
     create_file_if_not_exists,
     deep_merge,
     get_nested_value,
@@ -18,29 +19,34 @@ from nekoconf.utils import (
     notify_observers,
     save_file,
     set_nested_value,
+    getLogger,
 )
 
-logger = logging.getLogger(__name__)
 
-
-class ConfigManager:
+class NekoConfigManager:
     """Configuration manager for reading, writing, and observing configuration files."""
 
     def __init__(
         self,
         config_path: Union[str, Path],
         schema_path: Optional[Union[str, Path]] = None,
+        logger: Optional[logging.Logger] = None,
     ) -> None:
         """Initialize the configuration manager.
 
         Args:
             config_path: Path to the configuration file
             schema_path: Path to the schema file for validation (optional)
+            logger: Optional logger instance for logging messages
         """
         self.config_path = Path(config_path)
         self.schema_path = Path(schema_path) if schema_path else None
-        self.config_data: Dict[str, Any] = {}
+
+        self.logger = logger or getLogger(__name__)
+
+        self.data: Dict[str, Any] = {}
         self.observers: Set[Callable] = set()
+
         self._load_validators()
         self._init_config()  # Load the initial configuration
 
@@ -54,17 +60,17 @@ class ConfigManager:
         self.validator = None
         if self.schema_path:
             try:
-                from nekoconf.schema_validator import SchemaValidator
+                from .validator import NekoSchemaValidator  # Relative import
 
-                self.validator = SchemaValidator(self.schema_path)
-                logger.debug(f"Loaded schema validator from {self.schema_path}")
+                self.validator = NekoSchemaValidator(self.schema_path)
+                self.logger.debug(f"Loaded schema validator from {self.schema_path}")
             except ImportError:
-                logger.warning(
+                self.logger.warning(
                     "Schema validation requested but schema_validator module not available. "
                     "Install with pip install nekoconf[schema]"
                 )
             except Exception as e:
-                logger.error(f"Failed to load schema validator: {e}")
+                self.logger.error(f"Failed to load schema validator: {e}")
 
     def load(self) -> Dict[str, Any]:
         """Load configuration from file.
@@ -74,16 +80,16 @@ class ConfigManager:
         """
         try:
             if self.config_path.exists():
-                self.config_data = load_file(self.config_path)
-                logger.debug(f"Loaded configuration from {self.config_path}")
+                self.data = load_file(self.config_path)
+                # self.logger.debug(f"Loaded configuration from {self.config_path}")
             else:
-                logger.warning(f"Configuration file not found: {self.config_path}")
-                self.config_data = {}
-            return self.config_data
+                self.logger.warning(f"Configuration file not found: {self.config_path}")
+                self.data = {}
+            return self.data
         except Exception as e:
-            logger.error(f"Error loading configuration: {e}")
-            self.config_data = {}
-            return self.config_data
+            self.logger.error(f"Error loading configuration: {e}")
+            self.data = {}
+            return self.data
 
     def save(self) -> bool:
         """Save configuration to file.
@@ -92,11 +98,11 @@ class ConfigManager:
             True if successful, False otherwise
         """
         try:
-            save_file(self.config_path, self.config_data)
-            logger.debug(f"Saved configuration to {self.config_path}")
+            save_file(self.config_path, self.data)
+            self.logger.debug(f"Saved configuration to {self.config_path}")
             return True
         except Exception as e:
-            logger.error(f"Error saving configuration: {e}")
+            self.logger.error(f"Error saving configuration: {e}")
             return False
 
     def get_all(self) -> Dict[str, Any]:
@@ -105,7 +111,7 @@ class ConfigManager:
         Returns:
             The entire configuration data as a dictionary
         """
-        return self.config_data
+        return self.data
 
     def get(self, key: Optional[str] = None, default: Any = None) -> Any:
         """Get a configuration value.
@@ -118,9 +124,9 @@ class ConfigManager:
             The configuration value or default if not found
         """
         if key is None:
-            return self.config_data
+            return self.data
 
-        return get_nested_value(self.config_data, key, default)
+        return get_nested_value(self.data, key, default)
 
     def set(self, key: str, value: Any) -> None:
         """Set a configuration value.
@@ -129,7 +135,7 @@ class ConfigManager:
             key: The configuration key (dot notation for nested values)
             value: The value to set
         """
-        set_nested_value(self.config_data, key, value)
+        set_nested_value(self.data, key, value)
 
         self._notify_observers()
 
@@ -143,7 +149,7 @@ class ConfigManager:
             True if the key was deleted, False if it didn't exist
         """
         parts = key.split(".")
-        data = self.config_data
+        data = self.data
 
         # Navigate to the parent of the target key
         for i, part in enumerate(parts[:-1]):
@@ -167,9 +173,9 @@ class ConfigManager:
             deep_merge_enabled: Whether to perform deep merge for nested dictionaries
         """
         if deep_merge_enabled:
-            self.config_data = deep_merge(source=data, destination=self.config_data)
+            self.data = deep_merge(source=data, destination=self.data)
         else:
-            self.config_data.update(data)
+            self.data.update(data)
 
         self.save()  # Save the configuration after setting the value
         self._notify_observers()
@@ -181,7 +187,7 @@ class ConfigManager:
             observer: Function to call with the updated configuration data
         """
         self.observers.add(observer)
-        logger.debug(f"Registered configuration observer: {observer.__name__}")
+        self.logger.debug(f"Registered configuration observer: {observer.__name__}")
 
     def unregister_observer(self, observer: Callable) -> None:
         """Unregister an observer function.
@@ -191,7 +197,7 @@ class ConfigManager:
         """
         if observer in self.observers:
             self.observers.remove(observer)
-            logger.debug(f"Unregistered configuration observer: {observer.__name__}")
+            self.logger.debug(f"Unregistered configuration observer: {observer.__name__}")
 
     def _notify_observers(self) -> None:
         """Notify all observers of configuration changes."""
@@ -207,9 +213,9 @@ class ConfigManager:
         # Notify synchronous observers
         for observer in sync_observers:
             try:
-                observer(self.config_data)
+                observer(self.data)
             except Exception as e:
-                logger.error(f"Error in observer {observer.__name__}: {e}")
+                self.logger.error(f"Error in observer {observer.__name__}: {e}")
 
         # Use asyncio to properly handle async observers
         if not async_observers:
@@ -219,12 +225,12 @@ class ConfigManager:
             loop = asyncio.get_event_loop()
             # Check if we're in an event loop
             if loop.is_running():
-                asyncio.create_task(notify_observers(async_observers, self.config_data))
+                asyncio.create_task(notify_observers(async_observers, self.data))
             else:
                 # If not in an event loop, run the coroutine in a new event loop
-                asyncio.run(notify_observers(async_observers, self.config_data))
+                asyncio.run(notify_observers(async_observers, self.data))
         except Exception as e:
-            logger.error(f"Error scheduling async observers: {e}")
+            self.logger.error(f"Error triggering async observers: {e}, {traceback.format_exc()}")
 
     def validate(self) -> List[str]:
         """Validate configuration against schema.
@@ -233,7 +239,7 @@ class ConfigManager:
             List of validation error messages (empty if valid)
         """
         if not self.validator:
-            logger.warning("No schema validator available, skipping validation")
+            self.logger.warning("No schema validator available, skipping validation")
             return []
 
-        return self.validator.validate(self.config_data)
+        return self.validator.validate(self.data)

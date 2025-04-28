@@ -6,35 +6,20 @@ and performing basic configuration operations.
 
 import argparse
 import json
-import logging
 import os
 import sys
 from pathlib import Path
 from typing import List, Optional
 
-from nekoconf.config_manager import ConfigManager
-from nekoconf.server import NekoConf
-from nekoconf.utils import load_file, parse_value, save_file
-
-# Configure logging
-logger = logging.getLogger(__name__)
+import yaml
+import logging
 
 
-def _setup_logging(level: str = "INFO") -> None:
-    """Set up logging configuration.
-
-    Args:
-        level: Logging level to use
-    """
-    numeric_level = getattr(logging, level.upper(), None)
-    if not isinstance(numeric_level, int):
-        numeric_level = logging.INFO
-
-    logging.basicConfig(
-        level=numeric_level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[logging.StreamHandler()],
-    )
+from nekoconf.core.config import NekoConfigManager
+from nekoconf.core.utils import load_file, parse_value, save_file
+from nekoconf.server.app import NekoConfigServer
+from nekoconf.core.utils import getLogger
+from nekoconf._version import __version__
 
 
 def _create_parser() -> argparse.ArgumentParser:
@@ -82,15 +67,9 @@ def _create_parser() -> argparse.ArgumentParser:
         "--read-only", action="store_true", help="Start server in read-only mode"
     )
     server_parser.add_argument(
-        "--username",
+        "--api-key",
         type=str,
-        default="admin",
-        help="Username for authentication (default: admin)",
-    )
-    server_parser.add_argument(
-        "--password",
-        type=str,
-        help="Password for authentication (if not set, authentication is disabled)",
+        help="API key for securing the server (if not set, authentication is disabled)",
     )
 
     # Get command
@@ -214,7 +193,7 @@ def _create_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def handle_server_command(args: argparse.Namespace) -> int:
+def handle_server_command(args: argparse.Namespace, logger: Optional[logging.Logger] = None) -> int:
     """Handle the 'server' command.
 
     Args:
@@ -224,18 +203,23 @@ def handle_server_command(args: argparse.Namespace) -> int:
         Exit code (0 for success, non-zero for errors)
     """
     try:
+
+        if logger:
+            logger.info(f"Starting NekoConf server version {__version__}")
+
         config_path = Path(args.config)
         schema_path = Path(args.schema) if args.schema else None
 
         # Create config manager
-        config_manager = ConfigManager(config_path, schema_path)
+        config_manager = NekoConfigManager(config_path, schema_path, logger=logger)
         config_manager.load()
 
         # Create and run web server
-        server = NekoConf(
-            config_manager=config_manager,
-            username=args.username,
-            password=args.password,
+        server = NekoConfigServer(
+            config=config_manager,
+            api_key=args.api_key,
+            read_only=args.read_only,
+            logger=logger,
         )
         server.run(host=args.host, port=args.port, reload=args.reload)
 
@@ -249,7 +233,7 @@ def handle_server_command(args: argparse.Namespace) -> int:
         return 1
 
 
-def handle_get_command(args: argparse.Namespace) -> int:
+def handle_get_command(args: argparse.Namespace, logger: Optional[logging.Logger] = None) -> int:
     """Handle the 'get' command.
 
     Args:
@@ -262,7 +246,7 @@ def handle_get_command(args: argparse.Namespace) -> int:
         config_path = Path(args.config)
 
         # Load configuration
-        config_manager = ConfigManager(config_path)
+        config_manager = NekoConfigManager(config_path)
         config_manager.load()
 
         # Get the requested value
@@ -272,13 +256,7 @@ def handle_get_command(args: argparse.Namespace) -> int:
         if args.format == "json":
             print(json.dumps(value, indent=2))
         elif args.format == "yaml":
-            try:
-                import yaml
-
-                print(yaml.dump(value, default_flow_style=False))
-            except ImportError:
-                logger.error("YAML format requested but PyYAML not installed")
-                return 1
+            print(yaml.dump(value, default_flow_style=False))
         else:  # raw format
             if args.key is None or isinstance(value, (dict, list)):
                 print(json.dumps(value, indent=2))
@@ -291,7 +269,7 @@ def handle_get_command(args: argparse.Namespace) -> int:
         return 1
 
 
-def handle_set_command(args: argparse.Namespace) -> int:
+def handle_set_command(args: argparse.Namespace, logger: Optional[logging.Logger] = None) -> int:
     """Handle the 'set' command.
 
     Args:
@@ -305,7 +283,7 @@ def handle_set_command(args: argparse.Namespace) -> int:
         schema_path = Path(args.schema) if args.schema else None
 
         # Create config manager
-        config_manager = ConfigManager(config_path, schema_path)
+        config_manager = NekoConfigManager(config_path, schema_path)
         config_manager.load()
 
         # Parse the value
@@ -334,7 +312,7 @@ def handle_set_command(args: argparse.Namespace) -> int:
         return 1
 
 
-def handle_delete_command(args: argparse.Namespace) -> int:
+def handle_delete_command(args: argparse.Namespace, logger: Optional[logging.Logger] = None) -> int:
     """Handle the 'delete' command.
 
     Args:
@@ -348,7 +326,7 @@ def handle_delete_command(args: argparse.Namespace) -> int:
         schema_path = Path(args.schema) if args.schema else None
 
         # Create config manager
-        config_manager = ConfigManager(config_path, schema_path)
+        config_manager = NekoConfigManager(config_path, schema_path)
         config_manager.load()
 
         # Delete the key
@@ -376,7 +354,7 @@ def handle_delete_command(args: argparse.Namespace) -> int:
         return 1
 
 
-def handle_import_command(args: argparse.Namespace) -> int:
+def handle_import_command(args: argparse.Namespace, logger: Optional[logging.Logger] = None) -> int:
     """Handle the 'import' command.
 
     Args:
@@ -395,7 +373,7 @@ def handle_import_command(args: argparse.Namespace) -> int:
             return 1
 
         # Create config manager
-        config_manager = ConfigManager(config_path, schema_path)
+        config_manager = NekoConfigManager(config_path, schema_path)
         config_manager.load()
 
         # Load import data
@@ -428,7 +406,9 @@ def handle_import_command(args: argparse.Namespace) -> int:
         return 1
 
 
-def handle_validate_command(args: argparse.Namespace) -> int:
+def handle_validate_command(
+    args: argparse.Namespace, logger: Optional[logging.Logger] = None
+) -> int:
     """Handle the 'validate' command.
 
     Args:
@@ -450,7 +430,7 @@ def handle_validate_command(args: argparse.Namespace) -> int:
             return 1
 
         # Create config manager
-        config_manager = ConfigManager(config_path, schema_path)
+        config_manager = NekoConfigManager(config_path, schema_path)
         config_manager.load()
 
         # Validate
@@ -468,7 +448,7 @@ def handle_validate_command(args: argparse.Namespace) -> int:
         return 1
 
 
-def handle_init_command(args: argparse.Namespace) -> int:
+def handle_init_command(args: argparse.Namespace, logger: Optional[logging.Logger] = None) -> int:
     """Handle the 'init' command.
 
     Args:
@@ -520,28 +500,37 @@ def main(args: Optional[List[str]] = None) -> int:
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
-    from nekoconf import __version__
-
     if args is None:
         args = sys.argv[1:]
 
+    logger: Optional[logging.Logger] = None
+
     # Debug mode handling
     if "--debug" in args:
-        _setup_logging("DEBUG")
-        print(f"Python executable: {sys.executable}")
-        print(f"Python version: {sys.version}")
-        print(f"Script directory: {os.path.dirname(os.path.abspath(__file__))}")
-        print(f"Current working directory: {os.getcwd()}")
-        print(f"System PATH: {os.environ.get('PATH', '')}")
+        logger = getLogger("nekoconf.cli", level="DEBUG")
+        logger.debug(f"Python executable: {sys.executable}")
+        logger.debug(f"Python version: {sys.version}")
+        logger.debug(f"Script directory: {os.path.dirname(os.path.abspath(__file__))}")
+        logger.debug(f"Current working directory: {os.getcwd()}")
+        logger.debug(f"System PATH: {os.environ.get('PATH', '').split(os.pathsep)}")
         args.remove("--debug")
     else:
-        _setup_logging("INFO")
+        logger = getLogger("nekoconf.cli", level="INFO")
 
     parser = _create_parser()
-    parsed_args = parser.parse_args(args)
+
+    try:
+        parsed_args = parser.parse_args(args)
+    except Exception as e:
+        logger.error(f"Error parsing arguments: {e}")
+        if "--debug" in sys.argv:
+            import traceback
+
+            traceback.print_exc()
+        return 1
 
     # Handle version request
-    if parsed_args.version:
+    if getattr(parsed_args, "version", False):
         print(f"NekoConf version {__version__}")
         return 0
 
@@ -563,7 +552,7 @@ def main(args: Optional[List[str]] = None) -> int:
         }
 
         if parsed_args.command in handlers:
-            return handlers[parsed_args.command](parsed_args)
+            return handlers[parsed_args.command](parsed_args, logger)
         else:
             logger.error(f"Unknown command: {parsed_args.command}")
             return 1
