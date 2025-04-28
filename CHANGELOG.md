@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.1.8 (2025-04-28)
+
+### Bug Fixes
+
+- **build**: Fix missing static file... patch pyproxy.toml
+  ([`ea5efb8`](https://github.com/Nya-Foundation/NekoConf/commit/ea5efb81becef2d0534c6c5020db1b9bd81b1350))
+
+### Chores
+
+- **ci**: Small ci tweak
+  ([`a17ba76`](https://github.com/Nya-Foundation/NekoConf/commit/a17ba763087be9a5034694c25d552d75070772c2))
+
+
 ## v0.1.7 (2025-04-28)
 
 ### Bug Fixes
