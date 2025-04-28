@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.1.6 (2025-04-28)
+
+### Bug Fixes
+
+- **test**: Fix some test cases... refine observer logic, update UI/UX
+  ([`15cf67a`](https://github.com/Nya-Foundation/NekoConf/commit/15cf67ad2304e4cd7ff4ed0a07c56dd8209e9967))
+
+### Chores
+
+- **format**: Apply automatic formatting [skip ci]
+  ([`bf7c699`](https://github.com/Nya-Foundation/NekoConf/commit/bf7c699afba9a7a6eb30d006c0d743ed62ee75fd))
+
+
 ## v0.1.5 (2025-04-07)
 
 ### Bug Fixes
