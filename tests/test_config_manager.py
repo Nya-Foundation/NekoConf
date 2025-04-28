@@ -115,20 +115,22 @@ class TestNekoConfigObservers:
         """Test registering and unregistering observers."""
         # Register
         config_manager.register_observer(sync_observer)
-        assert sync_observer in config_manager.observers
+        assert sync_observer in config_manager.observers_sync
 
         config_manager.register_observer(async_observer)
-        assert async_observer in config_manager.observers
+        assert async_observer in config_manager.observers_async
 
         # Unregister
         config_manager.unregister_observer(sync_observer)
-        assert sync_observer not in config_manager.observers
+        assert sync_observer not in config_manager.observers_sync
 
         config_manager.unregister_observer(async_observer)
-        assert async_observer not in config_manager.observers
+        assert async_observer not in config_manager.observers_async
 
     @pytest.mark.asyncio
-    async def test_observer_notification(self, config_manager, sync_observer, async_observer):
+    async def test_observer_notification(
+        self, config_manager: NekoConfigManager, sync_observer, async_observer
+    ):
         """Test that observers are notified of configuration changes."""
         # Register both types of observers
         config_manager.register_observer(sync_observer)
@@ -136,6 +138,7 @@ class TestNekoConfigObservers:
 
         # Make changes
         config_manager.set("server.port", 9000)
+        config_manager.save()
 
         # For sync observers, the notification happens immediately
         assert sync_observer.called is True

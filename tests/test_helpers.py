@@ -37,7 +37,7 @@ class AsyncObserver(BaseObserver):
 
     async def __call__(self, config_data):
         """Called when configuration changes."""
-        await asyncio.sleep(0.01)  # Simulate async work
+        await asyncio.sleep(0.02)  # Simulate async work
         self.called = True
         self.data = config_data
 

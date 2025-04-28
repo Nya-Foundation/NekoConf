@@ -113,16 +113,17 @@ class TestNekoConfigClient:
         """Test registering and unregistering observer functions."""
         # Register
         config_api.observe(sync_observer)
-        assert sync_observer in config_api.config.observers
+        assert sync_observer in config_api.config.observers_sync
 
         # Should be notified on changes
         config_api.set("test.key", "value")
+        config_api.config.save()  # Trigger notification
         assert sync_observer.called is True
         assert sync_observer.data["test"]["key"] == "value"
 
         # Unregister
         config_api.stop_observing(sync_observer)
-        assert sync_observer not in config_api.config.observers
+        assert sync_observer not in config_api.config.observers_sync
 
     def test_reload(self, config_api, config_file):
         """Test reloading configuration."""

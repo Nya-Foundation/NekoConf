@@ -234,8 +234,6 @@ class NekoConfigClient:
             True if the key was deleted, False if it didn't exist
         """
         result = self.config.delete(key)
-        if result:
-            self.config.save()
         return result
 
     def update(self, data: Dict[str, Any], deep_merge: bool = True) -> None:
@@ -246,7 +244,6 @@ class NekoConfigClient:
             deep_merge: Whether to perform deep merge for nested dictionaries
         """
         self.config.update(data, deep_merge)
-        self.config.save()
 
     def get_all(self) -> Dict[str, Any]:
         """Get the entire configuration.

@@ -3,7 +3,7 @@
 import os
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import pytest
 from fastapi.testclient import TestClient
@@ -212,7 +212,7 @@ def test_observer_results() -> List[Dict[str, Any]]:
 
 # Core component fixtures
 @pytest.fixture
-def config_manager(test_config_file, sample_config) -> NekoConfigManager:
+def config_manager(test_config_file, sample_config):
     """Create a NekoConfig instance for testing."""
 
     # Initialize the config manager with the test file
@@ -224,7 +224,7 @@ def config_manager(test_config_file, sample_config) -> NekoConfigManager:
 
 
 @pytest.fixture
-def config_manager_with_schema(config_file, schema_file) -> NekoConfigManager:
+def config_manager_with_schema(config_file, schema_file):
     """Create a NekoConfig instance with schema for testing."""
     manager = NekoConfigManager(config_file, schema_file)
     manager.load()

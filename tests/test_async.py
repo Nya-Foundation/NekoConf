@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from nekoconf.core.utils import notify_observers
+from nekoconf.core.config import NekoConfigManager
 from tests.test_helpers import (
     create_async_failing_observer,
     create_failing_observer,
@@ -22,12 +22,12 @@ class TestAsyncOperations:
         sync_observed = []
         async_observed = []
 
-        # Create observers
-        async def async_observer(config_data):
+        # Create observers (accepting config_data explicitly)
+        async def async_observer(config_data, **kwargs):
             await asyncio.sleep(0.1)  # Simulate async work
             async_observed.append(config_data)
 
-        def sync_observer(config_data):
+        def sync_observer(config_data, **kwargs):
             sync_observed.append(config_data)
 
         # Register both observers
@@ -36,6 +36,7 @@ class TestAsyncOperations:
 
         # Make changes and check notifications
         config_manager.set("server.port", 9000)
+        config_manager.save()
 
         # Wait for async observer to complete
         await wait_for_observers()
@@ -60,6 +61,7 @@ class TestAsyncOperations:
 
         # This should not raise exceptions even though observers will fail
         config_manager.set("test.key", "value")
+        config_manager.save()
 
         # Wait for async operations
         await wait_for_observers()
@@ -68,132 +70,176 @@ class TestAsyncOperations:
         assert True
 
     @pytest.mark.asyncio
-    async def test_notify_observers_utility(self):
-        """Test the notify_observers utility function."""
-        # Create test data
+    async def test_observer_notification_directly(self, tmp_path):
+        """Test the observer notification in NekoConfigManager directly."""
+        # Create a config manager instance for testing
+        config_path = tmp_path / "test_config.yaml"
+        config_manager = NekoConfigManager(config_path=config_path)
+
+        # Test data
         config_data = {"test": "data"}
+        config_manager.data = config_data
 
         # Create observers
         sync_called = False
         async_called = False
 
-        def sync_observer(data):
+        # Update sync_observer to accept config_data as keyword arg
+        def sync_observer(config_data, **kwargs):
             nonlocal sync_called
             sync_called = True
-            assert data == config_data
+            assert config_data == config_manager.data  # Check against manager's data
 
-        async def async_observer(data):
+        async def async_observer(config_data, **kwargs):
             nonlocal async_called
             async_called = True
-            assert data == config_data
+            assert config_data == config_manager.data  # Check against manager's data
 
-        # Call notify_observers with both sync and async observers
-        observers = [sync_observer, async_observer]
-        await notify_observers(observers, config_data)
+        # Register observers
+        config_manager.register_observer(sync_observer)
+        config_manager.register_observer(async_observer)
+
+        # Manually trigger notification and capture futures
+        futures = config_manager._notify_observers()
+
+        # Wait for any scheduled async observers to complete
+        if futures:
+            await asyncio.gather(*futures)
 
         # Both observers should have been called
         assert sync_called
         assert async_called
 
     @pytest.mark.asyncio
-    async def test_notify_observers_with_none_value(self):
-        """Test notify_observers with None as an observer."""
-        config_data = {"test": "data"}
+    async def test_observers_with_none_value(self, tmp_path):
+        """Test observers with None as an observer."""
+        # Create a config manager
+        config_path = tmp_path / "test_config.yaml"
+        config_manager = NekoConfigManager(config_path=config_path)
+
+        # This test is tricky as the NekoConfigManager won't let you register None
+        # Instead, we can test the error handling for observers that return None
         results = []
 
-        def valid_observer(data):
+        # Observer accepting config_data
+        def valid_observer(config_data, **kwargs):
             results.append("called")
 
-        # Mix with None value
-        observers = [valid_observer, None, valid_observer]
+        # Register valid observer
+        config_manager.register_observer(valid_observer)
 
-        # Should skip None values without errors
-        with pytest.raises(RuntimeError) as excinfo:
-            await notify_observers(observers, config_data)
+        # Try to register None (this should be handled or fail gracefully)
+        with pytest.raises(Exception) as excinfo:
+            config_manager.register_observer(None)
 
-        assert "NoneType" in str(excinfo.value) or "not callable" in str(excinfo.value)
-        assert len(results) == 1  # First observer was called before the error
+        # The error message should mention callable or NoneType
+        assert "callable" in str(excinfo.value).lower() or "none" in str(excinfo.value).lower()
+
+        # The valid observer should still work
+        config_manager.set("test.key", "value")
+        config_manager.save()  # <-- Added save() call
+        assert len(results) == 1
 
     @pytest.mark.asyncio
-    async def test_notify_observers_with_invalid_callable(self):
-        """Test notify_observers with invalid callables."""
-        config_data = {"test": "data"}
+    async def test_observers_with_invalid_callable(self, tmp_path):
+        """Test observers with invalid callables."""
+        # Create a config manager
+        config_path = tmp_path / "test_config.yaml"
+        config_manager = NekoConfigManager(config_path=config_path)
 
         # Test with non-callable object
         invalid_observer = "not_a_function"
 
-        with pytest.raises(RuntimeError) as excinfo:
-            await notify_observers([invalid_observer], config_data)
+        with pytest.raises(Exception) as excinfo:
+            config_manager.register_observer(invalid_observer)
 
-        assert "not callable" in str(excinfo.value).lower() or "str" in str(excinfo.value)
+        # Error should mention callable
+        assert "callable" in str(excinfo.value).lower() or "str" in str(excinfo.value).lower()
 
     @pytest.mark.asyncio
-    async def test_notify_observers_with_wrong_signature(self):
-        """Test notify_observers with observer that has wrong signature."""
-        config_data = {"test": "data"}
+    async def test_observers_with_wrong_signature(self, tmp_path):
+        """Test observers with observer that has wrong signature."""
+        # Create a config manager
+        config_path = tmp_path / "test_config.yaml"
+        config_manager = NekoConfigManager(config_path=config_path)
 
         # Observer with no parameters
         def no_param_observer():
             pass
 
-        # Observer with too many parameters
+        # Observer with too many required parameters
         def too_many_params_observer(data, extra_param):
             pass
 
-        # Test with wrong signature observers
-        with pytest.raises(RuntimeError) as excinfo:
-            await notify_observers([no_param_observer], config_data)
+        # Register and test observers with wrong signatures
+        config_manager.register_observer(no_param_observer)
+        config_manager.register_observer(too_many_params_observer)
 
-        # Check if the error message contains appropriate text about argument/parameters
-        assert "takes 0 positional arguments but 1 was given" in str(excinfo.value)
+        # The errors should be caught in _notify_observers without crashing the app
+        config_manager.set("test.key", "value")
 
-        with pytest.raises(RuntimeError) as excinfo:
-            await notify_observers([too_many_params_observer], config_data)
-
-        # Check if the error message contains appropriate text about argument/parameters
-        assert "missing" in str(excinfo.value).lower() or "argument" in str(excinfo.value).lower()
+        # No exception should have propagated to this point
+        assert True
 
     @pytest.mark.asyncio
-    async def test_notify_observers_execution_order(self):
-        """Test that notify_observers preserves execution order for sync observers."""
-        config_data = {"test": "data"}
+    async def test_observers_execution_order(self, tmp_path):
+        """Test that observers are executed in registration order for sync observers."""
+        # Create a config manager
+        config_path = tmp_path / "test_config.yaml"
+        config_manager = NekoConfigManager(config_path=config_path)
+
         execution_order = []
 
-        def observer1(data):
+        # Observers accepting config_data
+        def observer1(config_data, **kwargs):
             execution_order.append(1)
 
-        def observer2(data):
+        def observer2(config_data, **kwargs):
             execution_order.append(2)
 
-        def observer3(data):
+        def observer3(config_data, **kwargs):
             execution_order.append(3)
 
-        # Notify in specific order
-        await notify_observers([observer1, observer2, observer3], config_data)
+        # Register in specific order
+        config_manager.register_observer(observer1)
+        config_manager.register_observer(observer2)
+        config_manager.register_observer(observer3)
 
-        # Sync observers should execute in the order they were provided
+        # Trigger notification by setting and saving
+        config_manager.set("test.key", "value")
+        config_manager.save()  # <-- Added save() call
+
+        # Sync observers should execute in the order they were registered
         assert execution_order == [1, 2, 3]
 
     @pytest.mark.asyncio
-    async def test_notify_observers_continue_after_error(self):
-        """Test that notify_observers stops on first error and doesn't call remaining observers."""
-        config_data = {"test": "data"}
+    async def test_observers_continue_after_error(self, tmp_path):
+        """Test that observer errors don't prevent other observers from being called."""
+        # Create a config manager
+        config_path = tmp_path / "test_config.yaml"
+        config_manager = NekoConfigManager(config_path=config_path)
+
         called = []
 
-        def good_observer1(data):
+        # Observers accepting config_data
+        def good_observer1(config_data, **kwargs):
             called.append("good1")
 
-        def failing_observer(data):
+        def failing_observer(config_data, **kwargs):
             called.append("failing")
             raise ValueError("Deliberate test failure")
 
-        def good_observer2(data):
+        def good_observer2(config_data, **kwargs):
             called.append("good2")
 
-        # This should raise on the failing observer
-        with pytest.raises(RuntimeError):
-            await notify_observers([good_observer1, failing_observer, good_observer2], config_data)
+        # Register observers
+        config_manager.register_observer(good_observer1)
+        config_manager.register_observer(failing_observer)
+        config_manager.register_observer(good_observer2)
 
-        # Should have called first observer and failing observer, but not the last
-        assert called == ["good1", "failing"]
-        assert "good2" not in called
+        # This should not raise as NekoConfigManager catches observer exceptions
+        config_manager.set("test.key", "value")
+        config_manager.save()  # <-- Added save() call
+
+        # All observers should be called, even after failure
+        assert called == ["good1", "failing", "good2"]

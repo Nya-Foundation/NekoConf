@@ -202,10 +202,11 @@ def handle_server_command(args: argparse.Namespace, logger: Optional[logging.Log
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
-    try:
 
-        if logger:
-            logger.info(f"Starting NekoConf server version {__version__}")
+    logger = logger or getLogger("nekoconf.cli.server", level="INFO")
+
+    try:
+        logger.info(f"Starting NekoConf server version {__version__}")
 
         config_path = Path(args.config)
         schema_path = Path(args.schema) if args.schema else None
@@ -225,11 +226,12 @@ def handle_server_command(args: argparse.Namespace, logger: Optional[logging.Log
 
         return 0
     except Exception as e:
-        logger.error(f"Error starting server: {e}")
-        if "--debug" in sys.argv:
+        if logger.level == logging.DEBUG:
             import traceback
 
             traceback.print_exc()
+        else:
+            logger.error(f"Error starting server: {e}.")
         return 1
 
 
@@ -242,6 +244,9 @@ def handle_get_command(args: argparse.Namespace, logger: Optional[logging.Logger
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
+
+    logger = logger or getLogger("nekoconf.cli.get", level="INFO")
+
     try:
         config_path = Path(args.config)
 
@@ -278,6 +283,8 @@ def handle_set_command(args: argparse.Namespace, logger: Optional[logging.Logger
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
+
+    logger = logger or getLogger("nekoconf.cli.set", level="INFO")
     try:
         config_path = Path(args.config)
         schema_path = Path(args.schema) if args.schema else None
@@ -321,6 +328,7 @@ def handle_delete_command(args: argparse.Namespace, logger: Optional[logging.Log
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
+    logger = logger or getLogger("nekoconf.cli.delete", level="INFO")
     try:
         config_path = Path(args.config)
         schema_path = Path(args.schema) if args.schema else None
@@ -363,6 +371,7 @@ def handle_import_command(args: argparse.Namespace, logger: Optional[logging.Log
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
+    logger = logger or getLogger("nekoconf.cli.import", level="INFO")
     try:
         config_path = Path(args.config)
         import_path = Path(args.import_file)
@@ -417,6 +426,7 @@ def handle_validate_command(
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
+    logger = logger or getLogger("nekoconf.cli.validate", level="INFO")
     try:
         config_path = Path(args.config)
         schema_path = Path(args.schema)
@@ -457,6 +467,7 @@ def handle_init_command(args: argparse.Namespace, logger: Optional[logging.Logge
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
+    logger = logger or getLogger("nekoconf.cli.init", level="INFO")
     try:
         config_path = Path(args.config)
 

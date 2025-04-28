@@ -1003,3 +1003,260 @@ copyright-paw::after {
     background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg"><path d="M6,1 C5,1 4.5,1.5 4.5,2 C4.5,2.5 5,3 6,3 C7,3 7.5,2.5 7.5,2 C7.5,1.5 7,1 6,1 Z M9,4 C8,4 7.5,4.5 7.5,5 C7.5,5.5 8,6 9,6 C10,6 10.5,5.5 10.5,5 C10.5,4.5 10,4 9,4 Z M3,4 C2,4 1.5,4.5 1.5,5 C1.5,5.5 2,6 3,6 C4,6 4.5,5.5 4.5,5 C4.5,4.5 4,4 3,4 Z M6,7 C5,7 4.5,7.5 4.5,8 C4.5,8.5 5,9 6,9 C7,9 7.5,8.5 7.5,8 C7.5,7.5 7,7 6,7 Z" fill="%23bdc3c7"/></svg>');
     background-repeat: no-repeat;
 }
+
+/* Array UI styling - Enhanced version */
+.array-container {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 0.75rem;
+    background-color: var(--input-bg);
+    position: relative;
+    transition: all 0.3s ease;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+  
+  .array-container:hover {
+    border-color: var(--accent-color);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 3px rgba(255, 107, 139, 0.1);
+  }
+  
+  .array-items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  
+  .array-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    animation: fadeIn 0.3s ease;
+    border-radius: var(--border-radius);
+    border: 1px dashed transparent;
+    background-color: var(--accent-color);
+    transition: all 0.2s ease;
+  }
+  
+  .array-item:hover {
+    border-color: var(--accent-color);
+    background-color: var(--hover-bg);
+  }
+  
+  .array-item-input {
+    flex: 1;
+  }
+  
+  .array-empty-message {
+    padding: 1rem;
+    color: var(--secondary-color);
+    text-align: center;
+    font-style: italic;
+    border: 1px dashed var(--border-color);
+    border-radius: var(--border-radius);
+    margin-bottom: 0.75rem;
+    background-color: rgba(255, 255, 255, 0.3);
+  }
+  
+  .array-empty-message::before {
+    content: "🐾";
+    display: inline-block;
+    margin-right: 0.5rem;
+    font-style: normal;
+  }
+  
+  .array-remove-btn, .array-add-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    line-height: 1;
+    transition: all 0.2s ease;
+    color: white;
+    flex-shrink: 0;
+  }
+  
+  .array-remove-btn {
+    background-color: var(--error-color);
+    opacity: 0.7;
+  }
+  
+  .array-remove-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+    box-shadow: 0 2px 5px rgba(255, 107, 107, 0.3);
+  }
+  
+  .array-add-btn {
+    background-color: var(--accent-color);
+    margin-left: auto;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .array-add-btn:hover {
+    transform: scale(1.1);
+    background-color: var(--accent-color-hover);
+    box-shadow: 0 2px 5px rgba(255, 107, 139, 0.3);
+  }
+  
+  .array-add-btn::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 50%);
+    border-radius: inherit;
+  }
+  
+  .array-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+  }
+  
+  .array-json {
+    font-family: monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 80px;
+    max-height: 250px;
+  }
+  
+  .array-json-hint {
+    font-size: 0.8rem;
+    color: var(--secondary-color);
+    margin-top: 0.5rem;
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .array-json-hint::before {
+    content: "🔍";
+    font-style: normal;
+  }
+  
+  /* For arrays with many items, add a subtle fade at the bottom */
+  .array-items::after {
+    content: "";
+    position: absolute;
+    bottom: 2.5rem;
+    left: 0;
+    right: 0;
+    height: 20px;
+    background: linear-gradient(to bottom, transparent, var(--input-bg));
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  
+  .array-items.scrollable::after {
+    opacity: 1;
+  }
+  
+  /* Drag handle for future sortable implementation */
+  .array-item-handle {
+    width: 12px;
+    height: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    cursor: grab;
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+    flex-shrink: 0;
+  }
+  
+  .array-item-handle:hover {
+    opacity: 1;
+  }
+  
+  .array-item-handle::before,
+  .array-item-handle::after {
+    content: "";
+    width: 12px;
+    height: 2px;
+    background-color: var(--secondary-color);
+    border-radius: 1px;
+  }
+  
+  /* Array type badges */
+  .array-type-indicator {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    background-color: rgba(255, 107, 139, 0.1);
+    color: var(--accent-color);
+    margin-left: 0.5rem;
+    vertical-align: middle;
+  }
+  
+  /* Simple paw print animation when hovering over array items */
+  .array-item:hover::before {
+    content: "🐾";
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    opacity: 0;
+    animation: pawFloat 0.6s ease forwards;
+  }
+  
+  @keyframes pawFloat {
+    0% { opacity: 0; transform: translateX(-50%) translateY(5px); }
+    100% { opacity: 0.7; transform: translateX(-50%) translateY(-5px); }
+  }
+  
+  /* Make array inputs more kawaii */
+  .array-item-input {
+    transition: all 0.2s ease;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 0.6rem 0.75rem;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+  }
+  
+  .array-item-input:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(255, 107, 139, 0.15);
+    outline: none;
+  }
+  
+  /* Improved spacing for complex arrays */
+  .complex-array {
+    padding-bottom: 0.5rem;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 576px) {
+    .array-item {
+      flex-wrap: wrap;
+    }
+    
+    .array-item-input {
+      flex: 1 0 100%;
+      margin-bottom: 0.5rem;
+    }
+    
+    .array-remove-btn {
+      margin-left: auto;
+    }
+  }

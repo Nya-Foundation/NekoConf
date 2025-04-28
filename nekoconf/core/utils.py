@@ -7,9 +7,8 @@ import inspect
 import json
 import logging
 import os
-import traceback
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Union
+from typing import Any,  Dict, List, Union
 
 import yaml
 import colorlog
@@ -279,35 +278,6 @@ def set_nested_value(data: Dict[str, Any], key: str, value: Any) -> None:
 
     # Set the value
     current[parts[-1]] = value
-
-
-async def notify_observers(
-    observers: List[Callable[[Dict[str, Any]], Any]],
-    config_data: Dict[str, Any],
-    logger: logging.Logger = None,
-) -> None:
-    """Notify observers of configuration changes.
-
-    Args:
-        observers: List of observer functions to call
-        config_data: Configuration data to pass to observers
-        logger: Optional logger to use for error reporting
-
-    Raises:
-        RuntimeError: If an observer raises an exception
-    """
-    logger = logger or getLogger(__name__)
-    for observer in observers:
-        try:
-            # Check if the observer is an async function or has async __call__
-            if is_async_callable(observer):
-                await observer(config_data)
-            else:
-                observer(config_data)
-        except Exception as e:
-            error_message = f"Error notifying observer {observer}: {e}, traceback: {traceback.format_exc() if logger.level <= logging.DEBUG else ''}"
-            logger.error(error_message)
-            raise RuntimeError(error_message) from e
 
 
 def is_async_callable(func):

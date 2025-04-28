@@ -175,6 +175,88 @@ function setupEventListeners() {
 
   // Add keyboard shortcuts
   document.addEventListener("keydown", handleKeyboardShortcuts);
+
+  // Array-specific event delegation
+  document.addEventListener("click", function (e) {
+    // Add new array item
+    if (e.target.classList.contains("array-add-btn")) {
+      const path = e.target.dataset.path;
+      addArrayItem(path);
+    }
+
+    // Remove array item
+    if (e.target.classList.contains("array-remove-btn")) {
+      const path = e.target.dataset.path;
+      const index = parseInt(e.target.dataset.index);
+      removeArrayItem(path, index);
+    }
+  });
+
+  // Handle changes to array items
+  document.addEventListener("change", function (e) {
+    if (e.target.classList.contains("array-item-input")) {
+      const path = e.target.dataset.path;
+      const index = parseInt(e.target.dataset.index);
+      const type = e.target.dataset.type;
+      let value = e.target.value;
+
+      // Convert value to the correct type
+      if (type === "number") value = parseFloat(value);
+      else if (type === "boolean") value = value === "true";
+
+      updateArrayItem(path, index, value);
+    }
+  });
+}
+
+// Add a new item to an array
+function addArrayItem(path) {
+  const arrayValue = getNestedValue(configData, path);
+
+  // Determine default value based on existing array items
+  let defaultValue = "";
+  if (arrayValue.length > 0) {
+    const lastItem = arrayValue[arrayValue.length - 1];
+    defaultValue =
+      typeof lastItem === "number"
+        ? 0
+        : typeof lastItem === "boolean"
+        ? false
+        : "";
+  }
+
+  arrayValue.push(defaultValue);
+  renderVisualEditor();
+  notify.success("Added new item to list");
+}
+
+// Remove an item from an array
+function removeArrayItem(path, index) {
+  const arrayValue = getNestedValue(configData, path);
+  arrayValue.splice(index, 1);
+  renderVisualEditor();
+  notify.success("Removed item from list");
+}
+
+// Update an array item value
+function updateArrayItem(path, index, value) {
+  const arrayValue = getNestedValue(configData, path);
+  arrayValue[index] = value;
+}
+
+// Helper function to get a nested value by path
+function getNestedValue(obj, path) {
+  const pathParts = path.split(".");
+  let current = obj;
+
+  for (const part of pathParts) {
+    if (current[part] === undefined) {
+      return undefined;
+    }
+    current = current[part];
+  }
+
+  return current;
 }
 
 // Enhanced keyboard shortcuts with better feedback
@@ -580,10 +662,59 @@ function renderNumberField(value, path) {
 }
 
 function renderArrayField(value, path) {
-  return `<textarea class="form-control" id="${path}" data-path="${path}" data-type="array" rows="${Math.min(
-    value.length + 2,
-    5
-  )}">${JSON.stringify(value, null, 2)}</textarea>`;
+  if (value.length === 0) {
+    return `
+      <div class="array-container empty-array" data-path="${path}">
+        <div class="array-empty-message">Empty list - click to add items</div>
+        <button class="array-add-btn" data-path="${path}" aria-label="Add item">+</button>
+      </div>
+    `;
+  }
+
+  // Determine if this is a simple array (all items are primitives)
+  const isSimpleArray = value.every(
+    (item) => typeof item !== "object" || item === null
+  );
+
+  if (isSimpleArray) {
+    return `
+      <div class="array-container simple-array" data-path="${path}">
+        <div class="array-items">
+          ${value
+            .map(
+              (item, index) => `
+            <div class="array-item">
+              <input 
+                type="${typeof item === "number" ? "number" : "text"}" 
+                class="form-control array-item-input" 
+                value="${
+                  typeof item === "string" ? item.replace(/"/g, "&quot;") : item
+                }"
+                data-path="${path}" 
+                data-index="${index}"
+                data-type="${typeof item}"
+              >
+              <button class="array-remove-btn" data-path="${path}" data-index="${index}" aria-label="Remove item">×</button>
+            </div>
+          `
+            )
+            .join("")}
+        </div>
+        <button class="array-add-btn" data-path="${path}" aria-label="Add item">+</button>
+      </div>
+    `;
+  } else {
+    // For complex arrays (with objects), fall back to JSON textarea but with improved styling
+    return `
+      <div class="array-container complex-array" data-path="${path}">
+        <textarea class="form-control array-json" data-path="${path}" data-type="array" rows="${Math.min(
+      value.length + 2,
+      8
+    )}">${JSON.stringify(value, null, 2)}</textarea>
+        <div class="array-json-hint">This list contains complex items. Edit as JSON.</div>
+      </div>
+    `;
+  }
 }
 
 function renderTextField(value, path) {
@@ -671,10 +802,12 @@ function validateAndParseYaml() {
 function collectFormData() {
   // Visual editor - collect values from form inputs
   const updatedConfig = structuredClone(configData);
-  const inputs = document.querySelectorAll(
-    "#visual-editor input, #visual-editor textarea"
-  );
   let hasValidationErrors = false;
+
+  // Handle regular inputs
+  const inputs = document.querySelectorAll(
+    "#visual-editor input:not(.array-item-input), #visual-editor textarea"
+  );
 
   inputs.forEach((input) => {
     const path = input.getAttribute("data-path");
@@ -706,6 +839,36 @@ function collectFormData() {
 
     // Set value in the config object
     setNestedValue(updatedConfig, path, value);
+  });
+
+  // Handle array items for simple arrays
+  const arrayItems = document.querySelectorAll(".array-item-input");
+  arrayItems.forEach((input) => {
+    const path = input.getAttribute("data-path");
+    const index = parseInt(input.getAttribute("data-index"));
+    const type = input.getAttribute("data-type");
+
+    if (!path) return;
+
+    let value;
+    if (type === "boolean") {
+      value = input.value === "true";
+    } else if (type === "number") {
+      if (isNaN(parseFloat(input.value))) {
+        input.classList.add("is-invalid");
+        hasValidationErrors = true;
+        return;
+      }
+      value = parseFloat(input.value);
+    } else {
+      value = input.value;
+    }
+
+    // Get the array and update the specific index
+    const arrayValue = getNestedValue(updatedConfig, path);
+    if (Array.isArray(arrayValue) && index < arrayValue.length) {
+      arrayValue[index] = value;
+    }
   });
 
   if (hasValidationErrors) {
