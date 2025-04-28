@@ -93,12 +93,8 @@ class NekoConfigServer:
             api_key: Optional API key for authentication
             read_only: If True, disables write operations
             logger: Optional custom logger, defaults to module logger
-
-
         """
         self.config = config
-        self.auth = NekoAuthGuard(api_key=api_key)  # Pass api_key to AuthManager
-
         self.read_only = read_only
         self.logger = logger or config.logger or getLogger(__name__)
 
@@ -125,8 +121,10 @@ class NekoConfigServer:
             allow_headers=["*"],
         )
 
-        # Add auth middleware
-        self.app.add_middleware(AuthMiddleware, auth=self.auth, logger=self.logger)
+        # Add authentication middleware if an API key is provided
+        if api_key:
+            self.auth = NekoAuthGuard(api_key=api_key)  # Pass api_key to AuthManager
+            self.app.add_middleware(AuthMiddleware, auth=self.auth, logger=self.logger)
 
         # Register as configuration observer
         self.config.register_observer(self._on_config_change)

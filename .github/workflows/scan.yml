@@ -15,7 +15,7 @@ on:
       - 'Pipfile'
       - 'Pipfile.lock'
   pull_request:
-    branches: ['main', 'staging', 'dev']
+    branches: ['staging', 'dev']
     paths:
       - 'pyproject.toml'
       - 'setup.py'
