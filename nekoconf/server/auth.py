@@ -4,17 +4,15 @@ Provides authentication mechanisms and middleware.
 """
 
 import importlib.resources
-
 import logging
-
 from typing import Optional
-
-from nekoconf.core.utils import getLogger
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import APIKeyHeader
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import HTMLResponse, JSONResponse
+
+from nekoconf.core.utils import getLogger
 
 
 class NekoAuthGuard:

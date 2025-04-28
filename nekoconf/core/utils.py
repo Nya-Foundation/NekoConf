@@ -8,10 +8,10 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any,  Dict, List, Union
+from typing import Any, Dict, List, Union
 
-import yaml
 import colorlog
+import yaml
 
 
 def getLogger(

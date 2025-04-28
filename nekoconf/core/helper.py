@@ -17,9 +17,9 @@ from typing import (
     overload,
 )
 
-from .utils import getLogger
 from nekoconf.core.config import NekoConfigManager
 
+from .utils import getLogger
 
 # Type variable for type hints
 T = TypeVar("T")

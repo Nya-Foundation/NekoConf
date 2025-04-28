@@ -15,10 +15,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
-from nekoconf.core.utils import getLogger
-from nekoconf.core.config import NekoConfigManager  # Updated import path
-from .auth import NekoAuthGuard, AuthMiddleware  # Relative import within web package
 from nekoconf._version import __version__
+from nekoconf.core.config import NekoConfigManager  # Updated import path
+from nekoconf.core.utils import getLogger
+
+from .auth import AuthMiddleware, NekoAuthGuard  # Relative import within web package
 
 
 class NekoWsNotifier:

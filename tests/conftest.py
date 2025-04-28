@@ -8,8 +8,8 @@ from typing import Any, Dict, List, Optional
 import pytest
 from fastapi.testclient import TestClient
 
-from nekoconf.core.helper import NekoConfigClient
 from nekoconf.core.config import NekoConfigManager
+from nekoconf.core.helper import NekoConfigClient
 from nekoconf.core.validator import NekoSchemaValidator
 from nekoconf.server.app import NekoConfigServer
 from tests.test_helpers import AsyncObserver, ConfigTestHelper, SyncObserver

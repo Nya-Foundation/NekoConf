@@ -6,20 +6,18 @@ and performing basic configuration operations.
 
 import argparse
 import json
+import logging
 import os
 import sys
 from pathlib import Path
 from typing import List, Optional
 
 import yaml
-import logging
 
-
-from nekoconf.core.config import NekoConfigManager
-from nekoconf.core.utils import load_file, parse_value, save_file
-from nekoconf.server.app import NekoConfigServer
-from nekoconf.core.utils import getLogger
 from nekoconf._version import __version__
+from nekoconf.core.config import NekoConfigManager
+from nekoconf.core.utils import getLogger, load_file, parse_value, save_file
+from nekoconf.server.app import NekoConfigServer
 
 
 def _create_parser() -> argparse.ArgumentParser:
