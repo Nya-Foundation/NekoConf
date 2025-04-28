@@ -1,6 +1,22 @@
 # CHANGELOG
 
 
+## v0.1.7 (2025-04-28)
+
+### Bug Fixes
+
+- **security**: Refine ci to include CodeQL, bump uvicorn>=0.22.0 remedidate security concern
+  ([`9ddefe0`](https://github.com/Nya-Foundation/NekoConf/commit/9ddefe09130b0a613ecb8c10e3cb8c4d89decdc8))
+
+### Chores
+
+- **ci**: Bump codeQL actions to v3
+  ([`014e3b7`](https://github.com/Nya-Foundation/NekoConf/commit/014e3b737999b2b01fd46d2ea5cff3e2488a8002))
+
+- **README**: Add README.md badges
+  ([`ba150d9`](https://github.com/Nya-Foundation/NekoConf/commit/ba150d990c8a9307c3eebfd4cd13d21c67c288f3))
+
+
 ## v0.1.6 (2025-04-28)
 
 ### Bug Fixes
