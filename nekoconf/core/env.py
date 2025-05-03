@@ -249,6 +249,9 @@ class EnvOverrideHandler:
         else:
             config_key = key_part.replace(self.nested_delimiter, ".").lower()
 
+        # Sanitize the key to ensure it won't cause JMESPath parsing errors later
+        # This handles cases like "java.home.11.x64" which has a number in the middle
+        # which would otherwise cause a ParseError when used with jmespath
         return config_key
 
     def _try_parse_and_set_value(
@@ -272,13 +275,29 @@ class EnvOverrideHandler:
             True if successful, False otherwise
         """
         try:
+            # Parse the value string to appropriate type
             parsed_value = parse_value(env_var_value_str)
-            set_nested_value(data, key_path, parsed_value)
-            stats["applied_count"] += 1  # Increment the counter by reference
-            return True
+
+            # Use direct dictionary navigation instead of jmespath for setting values
+            try:
+                self._set_nested_value(data, key_path, parsed_value)
+                stats["applied_count"] += 1  # Increment the counter by reference
+                return True
+            except Exception as e:
+                stats["error_count"] = stats.get("error_count", 0) + 1
+                error_msg = f"Failed to set key path '{key_path}' from environment variable '{env_var_name}': {e}"
+
+                if self.strict_parsing:
+                    raise ValueError(error_msg)
+                else:
+                    self.logger.warning(error_msg)
+                return False
+
         except Exception as e:
             stats["error_count"] = stats.get("error_count", 0) + 1
-            error_msg = f"Failed to parse or apply environment variable '{env_var_name}' for key '{key_path}': {e}"
+            error_msg = (
+                f"Failed to parse environment variable '{env_var_name}' for key '{key_path}': {e}"
+            )
 
             if self.strict_parsing:
                 raise ValueError(error_msg)
@@ -286,6 +305,41 @@ class EnvOverrideHandler:
                 self.logger.warning(error_msg)
 
             return False
+
+    def _set_nested_value(self, data: Dict[str, Any], key_path: str, value: Any) -> None:
+        """Safely set a value in a nested dictionary by navigating the dot-separated path.
+
+        This is an alternative to using set_nested_value from utils which uses JMESPath
+        and can fail with certain path formats.
+
+        Args:
+            data: The dictionary to modify
+            key_path: Dot-separated path to the value location
+            value: The value to set
+
+        Raises:
+            ValueError: If the path cannot be navigated (e.g., parent is not a dict)
+        """
+        if not key_path:
+            raise ValueError("Empty key path")
+
+        parts = key_path.split(".")
+        current = data
+
+        # Navigate to the parent of the target key
+        for i, part in enumerate(parts[:-1]):
+            if part not in current:
+                # Create missing intermediate dictionaries
+                current[part] = {}
+            elif not isinstance(current[part], dict):
+                # Cannot navigate further if current node is not a dict
+                raise ValueError(
+                    f"Cannot set value at '{key_path}' because '{'.'.join(parts[:i+1])}' is not a dictionary"
+                )
+            current = current[part]
+
+        # Set the value at the final path segment
+        current[parts[-1]] = value
 
     def _generate_env_var_name(self, config_key: str) -> str:
         """Generates the environment variable name for a given config key.
