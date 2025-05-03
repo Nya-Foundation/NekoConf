@@ -259,7 +259,7 @@ def handle_get_command(args: argparse.Namespace, logger: Optional[logging.Logger
         if args.format == "json":
             print(json.dumps(value, indent=2))
         elif args.format == "yaml":
-            print(yaml.dump(value, default_flow_style=False))
+            print(yaml.dump(value, default_flow_style=False, sort_keys=False))
         else:  # raw format
             if args.key is None or isinstance(value, (dict, list)):
                 print(json.dumps(value, indent=2))
