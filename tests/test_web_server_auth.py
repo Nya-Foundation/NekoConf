@@ -1,111 +1,207 @@
-"""Tests for NekoConf authentication."""
+"""Tests for the web server authentication module."""
 
-import base64
+from unittest.mock import MagicMock, mock_open, patch
 
+import pytest
+from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
+from starlette.responses import JSONResponse
 
-from nekoconf.server.app import NekoConfigServer
-
-
-def test_no_auth_required(test_client):
-    """Test that endpoints work without authentication when no API key is set."""
-    # No auth should work when API key is not set
-    response = test_client.get("/api/config")
-    assert response.status_code == 200
+from nekoconf.server.auth import AuthMiddleware, NekoAuthGuard
 
 
-def test_auth_required(web_server_with_auth):
-    """Test that endpoints require authentication when API key is set."""
-    # Create a client without auth headers
-    unauthenticated_client = TestClient(web_server_with_auth.app)
-
-    # Request without auth should fail
-    response = unauthenticated_client.get("/api/config")
-    assert response.status_code == 403
-
-    # Request with invalid API key should fail
-    auth_header = {"Authorization": "wrong-api-key"}
-    response = unauthenticated_client.get("/api/config", headers=auth_header)
-    assert response.status_code == 403
-
-    # Request with valid API key should succeed
-    auth_header = {"Authorization": "test-api-key"}
-    response = unauthenticated_client.get("/api/config", headers=auth_header)
-    assert response.status_code == 200
+@pytest.fixture
+def auth_guard():
+    """Create an authentication guard for testing."""
+    return NekoAuthGuard(api_key="test_key")
 
 
-def test_auth_required_for_all_endpoints(test_client_with_no_auth):
-    """Test that all API endpoints require authentication when API key is set."""
-    endpoints = [
-        ("/api/config", "GET"),
-        ("/api/config/server", "GET"),
-        ("/api/config", "POST"),
-        ("/api/config/server", "POST"),
-        ("/api/config/server", "DELETE"),
-        ("/api/config/reload", "POST"),
-        ("/api/config/validate", "POST"),
-    ]
-
-    for endpoint, method in endpoints:
-        request_method = getattr(test_client_with_no_auth, method.lower())
-        response = request_method(endpoint)
-        assert (
-            response.status_code == 403
-        ), f"Endpoint {method} {endpoint} should require authentication"
-
-    # Web UI endpoints should also require authentication
-    response = test_client_with_no_auth.get("/")
-    assert response.status_code == 401
+@pytest.fixture
+def auth_middleware(auth_guard):
+    """Create an authentication middleware for testing."""
+    return AuthMiddleware(app=MagicMock(), auth=auth_guard)
 
 
-def test_auth_with_bearer_format(config_manager):
-    """Test that authentication works with Bearer token format."""
-    # Create a server with authentication
-    server = NekoConfigServer(config_manager, api_key="secret-token")
-    client = TestClient(server.app)
+@pytest.fixture
+def authenticated_app():
+    """Create a FastAPI app with authentication for testing."""
+    app = FastAPI()
+    guard = NekoAuthGuard(api_key="test_key")
+    app.add_middleware(AuthMiddleware, auth=guard)
 
-    # Test with Bearer token format
-    auth_header = {"Authorization": "Bearer secret-token"}
-    response = client.get("/api/config", headers=auth_header)
-    assert response.status_code == 200
+    @app.get("/test")
+    def test_endpoint():
+        return {"status": "ok"}
 
+    @app.get("/")
+    def root_endpoint():
+        return {"status": "ok"}
 
-def test_auth_with_plain_token(config_manager):
-    """Test that authentication works with plain token format."""
-    # Create a server with authentication
-    server = NekoConfigServer(config_manager, api_key="secret-token")
-    client = TestClient(server.app)
-
-    # Test with plain token format
-    auth_header = {"Authorization": "secret-token"}
-    response = client.get("/api/config", headers=auth_header)
-    assert response.status_code == 200
+    return TestClient(app)
 
 
-def test_auth_works_with_default_credentials(test_client_with_auth):
-    """Test that endpoints work with the default auth credentials in the fixture."""
-    # This should work because test_client_with_auth already has credentials
-    response = test_client_with_auth.get("/api/config")
-    assert response.status_code == 200
+class TestAuthGuard:
+    """Tests for the NekoAuthGuard class."""
 
-    # Other endpoints should also work
-    response = test_client_with_auth.get("/api/config/server")
-    assert response.status_code == 200
+    def test_init_with_api_key(self):
+        """Test initializing with an API key."""
+        guard = NekoAuthGuard(api_key="test_key")
+        assert guard.api_key == "test_key"
 
-    # POST requests should work too
-    response = test_client_with_auth.post("/api/config/reload")
-    assert response.status_code == 200
+    def test_init_without_api_key(self):
+        """Test initializing without an API key."""
+        guard = NekoAuthGuard()
+        assert guard.api_key is None
+
+    def test_set_api_key(self):
+        """Test setting an API key."""
+        guard = NekoAuthGuard()
+        guard.set_api_key("new_key")
+        assert guard.api_key == "new_key"
+
+    def test_set_empty_api_key(self):
+        """Test setting an empty API key."""
+        guard = NekoAuthGuard(api_key="test_key")
+        with pytest.raises(ValueError):
+            guard.set_api_key("")
+
+    def test_verify_session_cookie(self):
+        """Test verifying a session cookie."""
+        guard = NekoAuthGuard(api_key="test_key")
+        request = MagicMock()
+        request.cookies = {"nekoconf_api_key": "test_key"}
+        assert guard.verify_session_cookie(request) is True
+
+    def test_verify_session_cookie_wrong_key(self):
+        """Test verifying a session cookie with wrong key."""
+        guard = NekoAuthGuard(api_key="test_key")
+        request = MagicMock()
+        request.cookies = {"nekoconf_api_key": "wrong_key"}
+        assert guard.verify_session_cookie(request) is False
+
+    def test_verify_session_cookie_no_key_needed(self):
+        """Test verifying a session cookie when no key is needed."""
+        guard = NekoAuthGuard()
+        request = MagicMock()
+        request.cookies = {}
+        assert guard.verify_session_cookie(request) is True
+
+    @pytest.mark.asyncio
+    async def test_verify_api_key(self, auth_guard):
+        """Test verifying an API key."""
+        # Valid key
+        assert await auth_guard.verify_api_key("test_key") is True
+        # Bearer prefix
+        assert await auth_guard.verify_api_key("Bearer test_key") is True
+
+    @pytest.mark.asyncio
+    async def test_verify_api_key_wrong_key(self, auth_guard):
+        """Test verifying a wrong API key."""
+        with pytest.raises(Exception) as excinfo:
+            await auth_guard.verify_api_key("wrong_key")
+        assert "Unauthorized" in str(excinfo.value)
+
+    @pytest.mark.asyncio
+    async def test_verify_api_key_no_key_provided(self, auth_guard):
+        """Test verifying when no API key is provided."""
+        with pytest.raises(Exception) as excinfo:
+            await auth_guard.verify_api_key(None)
+        assert "Unauthorized" in str(excinfo.value)
+
+    @pytest.mark.asyncio
+    async def test_verify_api_key_no_key_needed(self):
+        """Test verifying an API key when no key is needed."""
+        guard = NekoAuthGuard()
+        assert await guard.verify_api_key(None) is True
+        assert await guard.verify_api_key("any_key") is True
 
 
-def test_auth_with_session_cookie(config_manager):
-    """Test that authentication works with session cookie."""
-    # Create a server with authentication
-    server = NekoConfigServer(config_manager, api_key="cookie-token")
-    client = TestClient(server.app)
+async def test_response_handler(request: Request):
+    """Mock response handler for testing."""
+    return "success"
 
-    # Set session cookie
-    client.cookies.set("nekoconf_api_key", "cookie-token")
 
-    # Request should succeed with valid cookie
-    response = client.get("/api/config")
-    assert response.status_code == 200
+class TestAuthMiddleware:
+    """Tests for the AuthMiddleware class."""
+
+    @pytest.mark.asyncio
+    async def test_dispatch_no_auth_needed(self):
+        """Test dispatching a request when no auth is needed."""
+        guard = NekoAuthGuard()  # No API key configured
+        app = MagicMock()
+        middleware = AuthMiddleware(app=app, auth=guard)
+        request = MagicMock()
+        result = await middleware.dispatch(request, test_response_handler)
+        app.assert_not_called()  # App shouldn't be called directly
+
+        assert result is "success"
+
+    @pytest.mark.asyncio
+    async def test_dispatch_with_options_request(self, auth_middleware):
+        """Test dispatching an OPTIONS request for CORS preflight."""
+        request = MagicMock()
+        request.method = "OPTIONS"
+        result = await auth_middleware.dispatch(request, test_response_handler)
+        # The next handler should be called without checking auth
+
+        assert result is "success"
+
+    @pytest.mark.asyncio
+    async def test_dispatch_excluded_path(self, auth_middleware):
+        """Test dispatching a request to an excluded path."""
+        request = MagicMock()
+        request.method = "GET"
+        request.url.path = "/docs"
+        result = await auth_middleware.dispatch(request, test_response_handler)
+        # The next handler should be called without checking auth
+        assert result is "success"
+
+    def test_api_endpoint_no_auth(self, authenticated_app):
+        """Test accessing an API endpoint without authentication."""
+        response = authenticated_app.get("/test")
+        assert response.status_code == 403
+        assert "Unauthorized" in response.text
+
+    def test_api_endpoint_with_auth_header(self, authenticated_app):
+        """Test accessing an API endpoint with authentication header."""
+        response = authenticated_app.get("/test", headers={"Authorization": "Bearer test_key"})
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
+
+    def test_api_endpoint_with_auth_cookie(self, authenticated_app):
+        """Test accessing an API endpoint with authentication cookie."""
+        authenticated_app.cookies.set("nekoconf_api_key", "test_key")
+        response = authenticated_app.get("/test")
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
+
+    def test_root_path_no_auth(self, authenticated_app):
+        """Test accessing the root path without authentication."""
+        response = authenticated_app.get("/")
+        assert response.status_code == 401  # Should return login page
+        assert "html" in response.text.lower()  # Should be HTML
+
+    @pytest.mark.asyncio
+    async def test_generate_login_page(self, auth_middleware):
+        """Test generating a login page."""
+        request = MagicMock()
+        request.url.path = "/test"
+
+        # Use patch to mock the importlib.resources.files function
+        html_content = "<html>{{ return_path }}</html>"
+
+        with patch("importlib.resources.files") as mock_files:
+            # Mock the file path and its open method
+            mock_file_path = MagicMock()
+            mock_file_path.open.return_value.__enter__.return_value.read.return_value = html_content
+            mock_files.return_value.__truediv__.return_value.__truediv__.return_value = (
+                mock_file_path
+            )
+
+            # Generate the login page
+            response = auth_middleware._generate_login_page(request)
+
+            # Check response content (should contain the template with replaced values)
+            assert response.status_code == 401
+            assert "html" in response.body.decode().lower()
+            assert "/test" in response.body.decode()  # Should contain the return path

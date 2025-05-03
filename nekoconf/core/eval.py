@@ -8,6 +8,14 @@ import jsonschema
 import yaml
 from jsonschema import validators
 
+try:
+    import tomli  # Python < 3.11
+except ImportError:
+    try:
+        import tomllib as tomli  # Python >= 3.11
+    except ImportError:
+        tomli = None  # TOML support will be disabled
+
 
 class NekoSchemaValidator:
     """Validates configuration data against a schema using jsonschema."""
@@ -22,9 +30,11 @@ class NekoSchemaValidator:
             self.schema = self._load_schema_file(schema)
 
             if not isinstance(self.schema, dict):
-                raise ValueError("Schema file must contain a valid JSON or YAML object.")
+                raise ValueError("Schema file must contain a valid JSON, YAML, or TOML object.")
         elif isinstance(schema, dict):
             self.schema = schema
+        else:
+            raise TypeError(f"Schema must be a dict, string, or Path, not {type(schema)}")
 
         # Create a validator with the schema
         self.validator = validators.validator_for(self.schema)(self.schema)
@@ -34,7 +44,7 @@ class NekoSchemaValidator:
         """Create a schema validator from a schema file.
 
         Args:
-            schema_path: Path to the schema file (JSON or YAML format)
+            schema_path: Path to the schema file (JSON, YAML, or TOML format)
 
         Returns:
             A NekoValidator instance
@@ -76,6 +86,16 @@ class NekoSchemaValidator:
                     schema = json.loads(file_content)
                 except json.JSONDecodeError as e:
                     raise ValueError(f"Invalid JSON format in schema file: {e}")
+            elif file_extension == ".toml":
+                if tomli is None:
+                    raise ImportError(
+                        "TOML support requires 'tomli' package for Python < 3.11. "
+                        "Install with: pip install tomli"
+                    )
+                try:
+                    schema = tomli.loads(file_content)
+                except Exception as e:
+                    raise ValueError(f"Invalid TOML format in schema file: {e}")
             else:
                 raise ValueError(f"Unsupported file format for schema: {file_extension}")
 
@@ -92,8 +112,13 @@ class NekoSchemaValidator:
         """
         errors = []
 
-        # Use iter_errors to get all validation errors rather than stopping at the first one
-        for error in self.validator.iter_errors(config_data):
+        # Create a validator with format checking enabled
+        format_validator = jsonschema.validators.validator_for(self.schema)(
+            self.schema, format_checker=jsonschema.FormatChecker()
+        )
+
+        # Use iter_errors to get all validation errors including format validation
+        for error in format_validator.iter_errors(config_data):
             # Format the error path
             path = ".".join(str(part) for part in error.path) if error.path else "Root"
             message = f"{path}: {error.message}"
@@ -106,17 +131,5 @@ class NekoSchemaValidator:
                         ".".join(str(part) for part in suberror.path) if suberror.path else "Root"
                     )
                     errors.append(f"{subpath}: {suberror.message}")
-
-        # Check for format errors using the validator's FORMAT_CHECKER
-        validator_class = jsonschema.validators.validator_for(self.schema)
-        format_checker = validator_class.FORMAT_CHECKER
-        format_validator = validator_class(self.schema, format_checker=format_checker)
-
-        for error in format_validator.iter_errors(config_data):
-            # Only add if it's a new error (format validation)
-            path = ".".join(str(part) for part in error.path) if error.path else "Root"
-            message = f"{path}: {error.message}"
-            if message not in errors:
-                errors.append(message)
 
         return errors

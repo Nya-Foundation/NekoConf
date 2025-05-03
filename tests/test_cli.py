@@ -40,7 +40,7 @@ def test_handle_server_command():
         # Create args object
         args = MagicMock()
         args.config = "config.yaml"
-        args.host = "127.0.0.1"
+        args.host = "0.0.0.0"
         args.port = 9000
         args.schema = None
         args.reload = True
@@ -52,7 +52,7 @@ def test_handle_server_command():
         # Check server was created and run
         mock_web_server.assert_called_once()
         mock_web_server.return_value.run.assert_called_once_with(
-            host="127.0.0.1", port=9000, reload=True
+            host="0.0.0.0", port=9000, reload=True
         )
 
         # Should return success
@@ -69,7 +69,7 @@ def test_handle_server_command_with_api_key():
             # Create args object
             args = MagicMock()
             args.config = "config.yaml"
-            args.host = "127.0.0.1"
+            args.host = "0.0.0.0"
             args.port = 9000
             args.schema = None
             args.reload = True
@@ -90,7 +90,7 @@ def test_handle_server_command_error():
 
         args = MagicMock()
         args.config = "config.yaml"
-        args.host = "127.0.0.1"
+        args.host = "0.0.0.0"
         args.port = 9000
         args.schema = None
         args.reload = False
@@ -109,7 +109,7 @@ def test_config_modification_commands(config_file):
     args_set = MagicMock()
     args_set.config = str(config_file)
     args_set.key = "server.host"
-    args_set.value = "127.0.0.1"
+    args_set.value = "0.0.0.0"
     args_set.schema = None
 
     result = handle_set_command(args_set)
@@ -128,7 +128,7 @@ def test_config_modification_commands(config_file):
     with open(config_file) as f:
         config = yaml.safe_load(f)
 
-    assert config["server"]["host"] == "127.0.0.1"
+    assert config["server"]["host"] == "0.0.0.0"
     assert "debug" not in config["server"]
 
 
@@ -624,7 +624,7 @@ def test_handle_set_command_validation_error(config_file, schema_file):
     args = MagicMock()
     args.config = str(config_file)
     args.key = "server.host"
-    args.value = "127.0.0.1"
+    args.value = "0.0.0.0"
     args.schema = str(schema_file)
 
     # Mock the validation to return errors

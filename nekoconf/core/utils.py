@@ -6,12 +6,21 @@ This module provides common utility functions used across the NekoConf package.
 import inspect
 import json
 import logging
-import os
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import colorlog
+import jmespath
+import jmespath.exceptions
 import yaml
+
+try:
+    import tomli  # Python < 3.11
+except ImportError:
+    try:
+        import tomllib as tomli  # Python >= 3.11
+    except ImportError:
+        tomli = None  # TOML support will be disabled
 
 
 def getLogger(
@@ -74,8 +83,6 @@ def getLogger(
         # Prevent propagation to the root logger to avoid duplicate logs
         logger.propagate = False
 
-    logger.info(f"Logger '{name}' initialized with level {logging.getLevelName(logger.level)}")
-
     return logger
 
 
@@ -96,77 +103,115 @@ def create_file_if_not_exists(file_path: Union[str, Path]) -> None:
         raise IOError(f"Failed to create file: {e}") from e
 
 
-def load_file(file_path: Union[str, Path]) -> Dict[str, Any]:
-    """Load configuration from a YAML or JSON file.
+def save_file(path: Union[str, Path], data: Any, logger: Optional[logging.Logger] = None) -> bool:
+    """Save data to a YAML, JSON, or TOML file based on file extension.
 
     Args:
-        file_path: Path to the file to load
+        path: Path to the file
+        data: Data to save
 
     Returns:
-        Dictionary containing the loaded configuration
-
-    Raises:
-        ValueError: If the file has an invalid format
-        IOError: If the file cannot be read
+        True if successful, False otherwise
     """
-    file_path = Path(file_path)
-    if not file_path.exists():
-        return {}
-
+    path = Path(path)
+    logger = logger or getLogger(__name__)
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
+        # Create parent directory if it doesn't exist
+        path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Empty file case
-        if not content.strip():
-            return {}
-
-        # Determine file type by extension
-        suffix = file_path.suffix.lower()
-        if suffix in (".yaml", ".yml"):
-            data = yaml.safe_load(content)
-        elif suffix == ".json":
-            data = json.loads(content)
-        else:
-            # Try YAML first, then JSON
+        # Determine file format
+        if path.suffix.lower() == ".yaml" or path.suffix.lower() == ".yml":
+            # Save as YAML
+            with open(path, "w") as f:
+                yaml.dump(data, f, default_flow_style=False)
+        elif path.suffix.lower() == ".json":
+            # Save as JSON
+            with open(path, "w") as f:
+                json.dump(data, f, indent=2)
+        elif path.suffix.lower() == ".toml":
+            # Save as TOML
             try:
-                data = yaml.safe_load(content)
-            except yaml.YAMLError:
-                data = json.loads(content)
+                import tomli_w
 
-        return {} if data is None else data
-    except (yaml.YAMLError, json.JSONDecodeError) as e:
-        raise ValueError(f"Invalid file format: {e}") from e
+                with open(path, "wb") as f:
+                    tomli_w.dump(data, f)
+            except ImportError:
+                logger.error(
+                    "TOML format requested but tomli_w package not available. "
+                    "Install with: pip install tomli_w"
+                )
+                return False
+        else:
+            # Default to YAML for unknown extensions
+            with open(path, "w") as f:
+                yaml.dump(data, f, default_flow_style=False)
+
+        return True
     except Exception as e:
-        raise IOError(f"Failed to load file: {e}") from e
+        logger.error(f"Error saving file {path}: {e}")
+        return False
 
 
-def save_file(file_path: Union[str, Path], data: Dict[str, Any]) -> None:
-    """Save configuration to a YAML or JSON file.
+def load_file(path: Union[str, Path], logger: Optional[logging.Logger] = None) -> Any:
+    """Load data from a YAML, JSON, or TOML file based on file extension.
 
     Args:
-        file_path: Path to the file to save
-        data: Configuration data to save
+        path: Path to the file
+        logger: Optional logger to use for warnings/errors
 
-    Raises:
-        IOError: If the file cannot be written
+    Returns:
+        Loaded data, or empty dict if loading failed or file not found
     """
-    file_path = Path(file_path)
+    logger = logger or getLogger(__name__)
+    path = Path(path)
 
-    # Create directory if it doesn't exist
-    os.makedirs(file_path.parent, exist_ok=True)
+    if not path.exists():
+        logger.warning(f"File not found: {path}")
+        return {}  # Return empty dict instead of None
 
     try:
-        # Determine file type by extension
-        suffix = file_path.suffix.lower()
-        if suffix in (".yaml", ".yml"):
-            with open(file_path, "w", encoding="utf-8") as f:
-                yaml.dump(data, f, default_flow_style=False, sort_keys=False)
-        else:  # Default to JSON
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
+        # Determine file format
+        if path.suffix.lower() == ".yaml" or path.suffix.lower() == ".yml":
+            # Load YAML
+            with open(path, "r") as f:
+                return yaml.safe_load(f) or {}
+        elif path.suffix.lower() == ".json":
+            # Load JSON
+            with open(path, "r") as f:
+                return json.load(f)
+        elif path.suffix.lower() == ".toml":
+            # Load TOML
+            try:
+                # Try tomllib in Python 3.11+
+                try:
+                    import tomllib
+
+                    with open(path, "rb") as f:
+                        return tomllib.load(f) or {}
+                except ImportError:
+                    # Fall back to tomli
+                    try:
+                        import tomli
+
+                        with open(path, "rb") as f:
+                            return tomli.load(f) or {}
+                    except ImportError:
+                        logger.error(
+                            "TOML format requested but neither tomllib (Python 3.11+) "
+                            "nor tomli package is available. "
+                            "Install with: pip install tomli"
+                        )
+                        return {}  # Return empty dict instead of None
+            except Exception as e:
+                logger.error(f"Error parsing TOML file {path}: {e}")
+                return {}  # Return empty dict instead of None
+        else:
+            # Default to YAML for unknown extensions
+            with open(path, "r") as f:
+                return yaml.safe_load(f) or {}
     except Exception as e:
-        raise IOError(f"Failed to save file: {e}") from e
+        logger.error(f"Error loading file {path}: {e}")
+        return {}  # Return empty dict instead of None
 
 
 def parse_value(value_str: str) -> Any:
@@ -232,11 +277,11 @@ def deep_merge(source: Dict[str, Any], destination: Dict[str, Any]) -> Dict[str,
 
 
 def get_nested_value(data: Dict[str, Any], key: str, default: Any = None) -> Any:
-    """Get a value from a nested dictionary using dot notation.
+    """Get a value from a nested dictionary using JMESPath expressions or JMESPath expressions.
 
     Args:
         data: Dictionary to get value from
-        key: Key in dot notation (e.g., "server.host")
+        key: Key in JMESPath format (e.g., "server.host" or "servers[*].host")
         default: Default value to return if key is not found
 
     Returns:
@@ -245,27 +290,29 @@ def get_nested_value(data: Dict[str, Any], key: str, default: Any = None) -> Any
     if not key:
         return data
 
-    parts = key.split(".")
-    current = data
+    try:
+        result = jmespath.search(key, data)
+        if result is not None:  # JMESPath returns None for non-matches
+            return result
+    except jmespath.exceptions.JMESPathTypeError:
+        return default
 
-    for part in parts:
-        if not isinstance(current, dict) or part not in current:
-            return default
-        current = current[part]
-
-    return current
+    return default
 
 
-def set_nested_value(data: Dict[str, Any], key: str, value: Any) -> None:
-    """Set a value in a nested dictionary using dot notation.
+def set_nested_value(data: Dict[str, Any], key: str, value: Any) -> bool:
+    """Set a value in a nested dictionary using JMESPath expressions.
 
     Args:
         data: Dictionary to set value in
-        key: Key in dot notation (e.g., "server.host")
+        key: Key in JMESPath expressions (e.g., "server.host")
         value: Value to set
+
+    Returns:
+        True if value was changed, False otherwise
     """
     if not key:
-        return
+        return False
 
     parts = key.split(".") if "." in key else [key]
     current = data
@@ -276,8 +323,14 @@ def set_nested_value(data: Dict[str, Any], key: str, value: Any) -> None:
             current[part] = {}
         current = current[part]
 
+    # Check if value actually changes
+    last_key = parts[-1]
+    if last_key in current and current[last_key] == value:
+        return False
+
     # Set the value
-    current[parts[-1]] = value
+    current[last_key] = value
+    return True
 
 
 def is_async_callable(func):

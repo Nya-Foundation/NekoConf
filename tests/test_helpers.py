@@ -8,69 +8,6 @@ from typing import Any, Dict
 import yaml
 
 
-class BaseObserver:
-    """Base class for observer implementations."""
-
-    def __init__(self):
-        self.called = False
-        self.data = None
-        # Add __name__ attribute to make the observer identifiable
-        self.__name__ = self.__class__.__name__
-
-    def reset(self):
-        """Reset the observer state."""
-        self.called = False
-        self.data = None
-
-
-class SyncObserver(BaseObserver):
-    """A synchronous observer for testing configuration changes."""
-
-    def __call__(self, config_data):
-        """Called when configuration changes."""
-        self.called = True
-        self.data = config_data
-
-
-class AsyncObserver(BaseObserver):
-    """An asynchronous observer for testing configuration changes."""
-
-    async def __call__(self, config_data):
-        """Called when configuration changes."""
-        await asyncio.sleep(0.02)  # Simulate async work
-        self.called = True
-        self.data = config_data
-
-
-def create_failing_observer(error_message: str = "Test error"):
-    """Create an observer that raises an exception when called."""
-
-    def observer(config_data):
-        raise Exception(error_message)
-
-    return observer
-
-
-async def create_async_failing_observer(error_message: str = "Test async error"):
-    """Create an async observer that raises an exception when called."""
-
-    async def observer(config_data):
-        await asyncio.sleep(0.01)
-        raise Exception(error_message)
-
-    return observer
-
-
-async def wait_for_observers(timeout=0.2) -> None:
-    """Wait for all async observer tasks to complete.
-
-    Args:
-        timeout: Time to wait for pending tasks
-    """
-    # Allow the event loop to process any pending tasks
-    await asyncio.sleep(timeout)
-
-
 class ConfigTestHelper:
     """Helper class for common configuration testing tasks."""
 

@@ -2,10 +2,7 @@
 
 from pathlib import Path
 
-import pytest
-
 from nekoconf.core.config import NekoConfigManager
-from tests.test_helpers import wait_for_observers
 
 
 class TestNekoConfigBase:
@@ -82,9 +79,9 @@ class TestNekoConfigBase:
     def test_modification_operations(self, config_manager):
         """Test set, delete, and update operations."""
         # Test set
-        config_manager.set("server.host", "127.0.0.1")
+        config_manager.set("server.host", "0.0.0.0")
         config_manager.set("server.ssl", True)
-        assert config_manager.get("server.host") == "127.0.0.1"
+        assert config_manager.get("server.host") == "0.0.0.0"
         assert config_manager.get("server.ssl") is True
 
         # Test delete
@@ -106,59 +103,6 @@ class TestNekoConfigBase:
         assert config_manager.get("server.port") == 9000
         assert config_manager.get("database.pool_size") == 10
         assert config_manager.get("new_section.key") == "value"
-
-
-class TestNekoConfigObservers:
-    """Tests for the observer functionality of NekoConfig."""
-
-    def test_observer_registration(self, config_manager, sync_observer, async_observer):
-        """Test registering and unregistering observers."""
-        # Register
-        config_manager.register_observer(sync_observer)
-        assert sync_observer in config_manager.observers_sync
-
-        config_manager.register_observer(async_observer)
-        assert async_observer in config_manager.observers_async
-
-        # Unregister
-        config_manager.unregister_observer(sync_observer)
-        assert sync_observer not in config_manager.observers_sync
-
-        config_manager.unregister_observer(async_observer)
-        assert async_observer not in config_manager.observers_async
-
-    @pytest.mark.asyncio
-    async def test_observer_notification(
-        self, config_manager: NekoConfigManager, sync_observer, async_observer
-    ):
-        """Test that observers are notified of configuration changes."""
-        # Register both types of observers
-        config_manager.register_observer(sync_observer)
-        config_manager.register_observer(async_observer)
-
-        # Make changes
-        config_manager.set("server.port", 9000)
-        config_manager.save()
-
-        # For sync observers, the notification happens immediately
-        assert sync_observer.called is True
-        assert sync_observer.data["server"]["port"] == 9000
-
-        # For async observers, we need to wait
-        await wait_for_observers()
-        assert async_observer.called is True
-        assert async_observer.data["server"]["port"] == 9000
-
-        # Reset and test with update
-        sync_observer.reset()
-        async_observer.reset()
-
-        config_manager.update({"database": {"name": "new_db"}})
-        assert sync_observer.called is True
-
-        await wait_for_observers()
-        assert async_observer.called is True
-        assert async_observer.data["database"]["name"] == "new_db"
 
 
 class TestNekoConfigValidation:
