@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.1.11 (2025-05-03)
+
+### Bug Fixes
+
+- Update signal handling logic, disable yaml dump sort_key
+  ([`2e78dab`](https://github.com/Nya-Foundation/NekoConf/commit/2e78dabab529be2fd51f9134f15d55bdb73e95a5))
+
+
 ## v0.1.10 (2025-05-03)
 
 ### Bug Fixes
