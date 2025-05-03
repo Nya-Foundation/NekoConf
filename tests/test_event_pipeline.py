@@ -13,9 +13,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from nekoconf.core.helper import NekoConfigClient
 from nekoconf.core.config import NekoConfigManager
 from nekoconf.core.event import EventContext, EventHandler, EventType, NekoEventPipeline
+from nekoconf.core.helper import NekoConfigClient
 from nekoconf.core.utils import is_async_callable
 
 

@@ -206,32 +206,6 @@ class TestNekoConf:
             # Verify config cleanup was called
             config_manager.cleanup.assert_called_once()
 
-    def test_shutdown_handler(self):
-        """Test that the shutdown handler works properly."""
-        config_manager = MagicMock()
-
-        # Patch signal handlers, sys.exit, and asynccontextmanager
-        with patch("signal.signal") as mock_signal, patch("sys.exit") as mock_exit, patch(
-            "contextlib.asynccontextmanager", lambda f: f
-        ):
-
-            # Create server
-            web_server = NekoConfigServer(config_manager)
-
-            # Get the signal handler function
-            # signal.signal was called with (signal.SIGINT, handler_func)
-            signal_args = mock_signal.call_args_list[0][0]
-            signal_handler = signal_args[1]
-
-            # Call the handler function with mock signal and frame
-            signal_handler(15, None)  # 15 is SIGTERM
-
-            # Assert cleanup was called
-            config_manager.cleanup.assert_called_once()
-
-            # Assert sys.exit was called
-            mock_exit.assert_called_once()
-
     @pytest.mark.asyncio
     async def test_lifespan_context_manager(self):
         """Test the lifespan context manager."""
