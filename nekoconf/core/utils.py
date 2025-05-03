@@ -123,7 +123,7 @@ def save_file(path: Union[str, Path], data: Any, logger: Optional[logging.Logger
         if path.suffix.lower() == ".yaml" or path.suffix.lower() == ".yml":
             # Save as YAML
             with open(path, "w") as f:
-                yaml.dump(data, f, default_flow_style=False)
+                yaml.dump(data, f, default_flow_style=False, sort_keys=False)
         elif path.suffix.lower() == ".json":
             # Save as JSON
             with open(path, "w") as f:
