@@ -1,6 +1,28 @@
 # CHANGELOG
 
 
+## v0.1.9 (2025-05-03)
+
+### Bug Fixes
+
+- Env override logic consolidation, and enhancement
+  ([`a253ea7`](https://github.com/Nya-Foundation/NekoConf/commit/a253ea7ae83513a3d4abeab1d601d7129b9eccad))
+
+- Env var parsing issue
+  ([`ba7b3a9`](https://github.com/Nya-Foundation/NekoConf/commit/ba7b3a9d77bc43dacfd3d5cedd33cc9f5a445bae))
+
+- Excluded env var that are not started with the prefix
+  ([`fd187b2`](https://github.com/Nya-Foundation/NekoConf/commit/fd187b2eb01d84ae6c446efcd184c28d75c6e14a))
+
+- Notify no prefix issue by adding more warning
+  ([`061354e`](https://github.com/Nya-Foundation/NekoConf/commit/061354e443dba54be0736aff8253f092b8dd312a))
+
+### Documentation
+
+- Enhance docs, add CONTRIBUTING.md
+  ([`6242f52`](https://github.com/Nya-Foundation/NekoConf/commit/6242f52d3c7ed50cad30d0387b8389dacbf0ca90))
+
+
 ## v0.1.8 (2025-04-28)
 
 ### Bug Fixes
