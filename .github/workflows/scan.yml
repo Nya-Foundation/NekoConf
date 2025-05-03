@@ -60,9 +60,6 @@ jobs:
           # Fail the workflow if any vulnerabilities with 'high' or 'critical' severity are found.
           # Allowed values: low, moderate, high, critical
           fail-on-severity: high
-
-          # Uncomment based on your license policy
-          allow-licenses: MIT, Apache-2.0, BSD-3-Clause, ISC, 0BSD, Python-2.0
           
   codeql-analysis:
     name: CodeQL SAST Analysis

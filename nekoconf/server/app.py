@@ -89,6 +89,7 @@ class NekoConfigServer:
         api_key: Optional[str] = None,
         read_only: bool = False,
         logger: Optional[logging.Logger] = None,
+        register_signals: bool = True,  # Add this parameter
     ) -> None:
         """Initialize the api and web server.
 
@@ -97,6 +98,7 @@ class NekoConfigServer:
             api_key: Optional API key for authentication
             read_only: If True, disables write operations
             logger: Optional custom logger, defaults to module logger
+            register_signals: If True, registers signal handlers for graceful shutdown
         """
         self.config = config
         self.read_only = read_only
@@ -147,8 +149,9 @@ class NekoConfigServer:
         # Set up routes
         self._setup_routes()
 
-        # Set up signal handlers
-        self._setup_signal_handlers()
+        # Only set up signal handlers if requested
+        if register_signals:
+            self._setup_signal_handlers()
 
     def _setup_signal_handlers(self):
         """Set up signal handlers for graceful shutdown."""
@@ -158,8 +161,8 @@ class NekoConfigServer:
             self._shutdown_requested = True
             self._cleanup_resources()
 
-            # Exit gracefully after cleanup
-            sys.exit(0)
+            # Don't call sys.exit() - let the parent application handle process termination
+            # Instead, just set a flag and perform cleanup
 
         # Register signal handlers
         signal.signal(signal.SIGINT, signal_handler)
