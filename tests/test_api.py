@@ -2,7 +2,7 @@
 
 import pytest
 
-from nekoconf.core.helper import NekoConfigClient
+from nekoconf.core.client import NekoConfigClient
 
 
 class TestNekoConfigClient:
@@ -91,8 +91,8 @@ class TestNekoConfigClient:
     def test_modification_operations(self, config_api):
         """Test set, delete, and update operations."""
         # Set
-        config_api.set("server.host", "127.0.0.1")
-        assert config_api.get("server.host") == "127.0.0.1"
+        config_api.set("server.host", "0.0.0.0")
+        assert config_api.get("server.host") == "0.0.0.0"
 
         # Set nested
         config_api.set("server.ssl.enabled", True)
@@ -108,22 +108,6 @@ class TestNekoConfigClient:
         config_api.update(update_data)
         assert config_api.get("server.port") == 9000
         assert config_api.get("new_key") == "value"
-
-    def test_observer_management(self, config_api, sync_observer):
-        """Test registering and unregistering observer functions."""
-        # Register
-        config_api.observe(sync_observer)
-        assert sync_observer in config_api.config.observers_sync
-
-        # Should be notified on changes
-        config_api.set("test.key", "value")
-        config_api.config.save()  # Trigger notification
-        assert sync_observer.called is True
-        assert sync_observer.data["test"]["key"] == "value"
-
-        # Unregister
-        config_api.stop_observing(sync_observer)
-        assert sync_observer not in config_api.config.observers_sync
 
     def test_reload(self, config_api, config_file):
         """Test reloading configuration."""

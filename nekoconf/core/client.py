@@ -8,7 +8,6 @@ import logging
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
     Dict,
     List,
     Optional,
@@ -28,7 +27,7 @@ T = TypeVar("T")
 class NekoConfigClient:
     """A helper class for accessing and managing NekoConf configurations.
 
-    This class provides methods for external applications to access and observe
+    This class provides methods for external applications to access and event handling
     configuration data managed by NekoConf.
     """
 
@@ -55,7 +54,7 @@ class NekoConfigClient:
         """Get a configuration value.
 
         Args:
-            key: The configuration key (dot notation for nested values)
+            key: The configuration key (JMESPath expressions for nested values)
             default: Default value to return if key is not found
 
         Returns:
@@ -73,7 +72,7 @@ class NekoConfigClient:
         """Get a configuration value with type preservation.
 
         Args:
-            key: The configuration key (dot notation for nested values)
+            key: The configuration key (JMESPath expressions for nested values)
             default: Default value to return if key is not found
 
         Returns:
@@ -95,7 +94,7 @@ class NekoConfigClient:
         """Get an integer configuration value.
 
         Args:
-            key: The configuration key (dot notation for nested values)
+            key: The configuration key (JMESPath expressions for nested values)
             default: Default value to return if key is not found
 
         Returns:
@@ -114,7 +113,7 @@ class NekoConfigClient:
         """Get a float configuration value.
 
         Args:
-            key: The configuration key (dot notation for nested values)
+            key: The configuration key (JMESPath expressions for nested values)
             default: Default value to return if key is not found
 
         Returns:
@@ -133,7 +132,7 @@ class NekoConfigClient:
         """Get a boolean configuration value.
 
         Args:
-            key: The configuration key (dot notation for nested values)
+            key: The configuration key (JMESPath expressions for nested values)
             default: Default value to return if key is not found
 
         Returns:
@@ -164,7 +163,7 @@ class NekoConfigClient:
         """Get a string configuration value.
 
         Args:
-            key: The configuration key (dot notation for nested values)
+            key: The configuration key (JMESPath expressions for nested values)
             default: Default value to return if key is not found
 
         Returns:
@@ -179,7 +178,7 @@ class NekoConfigClient:
         """Get a list configuration value.
 
         Args:
-            key: The configuration key (dot notation for nested values)
+            key: The configuration key (JMESPath expressions for nested values)
             default: Default value to return if key is not found
 
         Returns:
@@ -199,7 +198,7 @@ class NekoConfigClient:
         """Get a dictionary configuration value.
 
         Args:
-            key: The configuration key (dot notation for nested values)
+            key: The configuration key (JMESPath expressions for nested values)
             default: Default value to return if key is not found
 
         Returns:
@@ -219,7 +218,7 @@ class NekoConfigClient:
         """Set a configuration value.
 
         Args:
-            key: The configuration key (dot notation for nested values)
+            key: The configuration key (JMESPath expressions for nested values)
             value: The value to set
         """
         self.config.set(key, value)
@@ -228,7 +227,7 @@ class NekoConfigClient:
         """Delete a configuration value.
 
         Args:
-            key: The configuration key (dot notation for nested values)
+            key: The configuration key (JMESPath expressions for nested values)
 
         Returns:
             True if the key was deleted, False if it didn't exist
@@ -245,6 +244,14 @@ class NekoConfigClient:
         """
         self.config.update(data, deep_merge)
 
+    def save(self) -> bool:
+        """Save the current configuration to file.
+
+        Returns:
+            True if save was successful, False otherwise
+        """
+        return self.config.save()
+
     def get_all(self) -> Dict[str, Any]:
         """Get the entire configuration.
 
@@ -252,24 +259,6 @@ class NekoConfigClient:
             The complete configuration data
         """
         return self.config.get()
-
-    def observe(self, observer: Callable[[Dict[str, Any]], Any]) -> None:
-        """Register an observer function to be called when configuration changes.
-
-        The observer can be either a synchronous function or an async coroutine.
-
-        Args:
-            observer: Function or coroutine to call with updated configuration data
-        """
-        self.config.register_observer(observer)
-
-    def stop_observing(self, observer: Callable[[Dict[str, Any]], Any]) -> None:
-        """Unregister an observer function.
-
-        Args:
-            observer: Function or coroutine to remove from observers
-        """
-        self.config.unregister_observer(observer)
 
     def reload(self) -> Dict[str, Any]:
         """Reload configuration from file.
@@ -286,3 +275,56 @@ class NekoConfigClient:
             List of validation error messages (empty if valid)
         """
         return self.config.validate()
+
+    def on_change(self, path_pattern: str, priority: int = 100):
+        """Register a handler for changes to a specific configuration path.
+
+        This method provides a decorator that can be used to register a function
+        as a handler for configuration changes at a specific path.
+
+        Args:
+            path_pattern: Path pattern to filter events (e.g., "database.connection")
+            priority: Handler priority (lower number = higher priority)
+
+        Returns:
+            Decorator function
+
+        Example:
+            @config.on_change("database.connection")
+            def handle_db_connection_change(old_value, new_value, **kwargs):
+                # Reconnect to database with new settings
+                pass
+        """
+        return self.config.on_change(path_pattern, priority)
+
+    def on_event(self, event_type, path_pattern=None, priority=100):
+        """Register a handler for specific event types.
+
+        This method provides a decorator that can be used to register a function
+        as a handler for specific types of configuration events.
+
+        Args:
+            event_type: Type of event to handle (or list of types)
+            path_pattern: Optional path pattern to filter events
+            priority: Handler priority (lower number = higher priority)
+
+        Returns:
+            Decorator function
+
+        Example:
+            @config.on_event(EventType.DELETE, "cache.*")
+            def handle_cache_delete(path, old_value, **kwargs):
+                # Clear cache entries when deleted
+                pass
+
+            @config.on_event([EventType.CREATE, EventType.UPDATE], "logging.*")
+            def handle_logging_change(event_type, path, new_value, **kwargs):
+                # Update logging configuration
+                if event_type == EventType.CREATE:
+                    # Initialize new logger
+                    pass
+                else:
+                    # Update existing logger
+                    pass
+        """
+        return self.config.on_event(event_type, path_pattern, priority)

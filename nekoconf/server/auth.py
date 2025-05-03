@@ -120,11 +120,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Skip auth for specific paths if needed
-        excluded_paths = [
-            "/docs",
-            "/redoc",
-            "/openapi.json",
-        ]
+        excluded_paths = ["/docs", "/redoc", "/openapi.json", "/health"]
         if any(request.url.path.startswith(path) for path in excluded_paths):
             return await call_next(request)
 
@@ -153,7 +149,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return self._generate_login_page(request)
 
         # For API and other paths, return JSON error
-        return JSONResponse(status_code=403, content={"error": "Unauthorized: Invalid API key"})
+        return JSONResponse(
+            status_code=403, content={"error": "Unauthorized: NekoConf - Invalid API key"}
+        )
 
     def _generate_login_page(self, request: Request):
         """Generate a login page for the config ui"""
