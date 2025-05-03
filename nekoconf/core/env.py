@@ -8,7 +8,7 @@ import copy
 import logging
 import os
 import re
-from typing import Any, Dict, List, MutableMapping, Optional, Tuple, Set
+from typing import Any, Dict, List, MutableMapping, Optional, Set, Tuple
 
 from .utils import get_nested_value, getLogger, parse_value
 

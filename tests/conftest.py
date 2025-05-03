@@ -8,9 +8,9 @@ from typing import Any, Dict, Optional
 import pytest
 from fastapi.testclient import TestClient
 
-from nekoconf.core.helper import NekoConfigClient
 from nekoconf.core.config import NekoConfigManager
 from nekoconf.core.eval import NekoSchemaValidator
+from nekoconf.core.helper import NekoConfigClient
 from nekoconf.server.app import NekoConfigServer
 from tests.test_helpers import ConfigTestHelper
 

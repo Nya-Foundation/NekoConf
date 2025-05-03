@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from nekoconf.core.helper import NekoConfigClient
 from nekoconf.core.config import NekoConfigManager
+from nekoconf.core.helper import NekoConfigClient
 from nekoconf.core.utils import load_file, save_file
 
 # Skip tests if tomli/tomli_w packages are not available

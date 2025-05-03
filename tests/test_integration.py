@@ -7,9 +7,9 @@ import tempfile
 
 import pytest
 
-from nekoconf.core.helper import NekoConfigClient
 from nekoconf.core.config import NekoConfigManager
 from nekoconf.core.event import EventType
+from nekoconf.core.helper import NekoConfigClient
 
 # Skip tests if tomli/tomli_w packages are not available
 try:
