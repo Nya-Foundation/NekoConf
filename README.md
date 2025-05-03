@@ -337,13 +337,19 @@ DATABASES = {
 
 ## Documentation
 
-- [Environment Variables](docs/environment-variables.md)
-- [Event System](docs/event-system.md) 
-- [Web Server & REST API](docs/web-server.md)
-- [CLI Reference](docs/cli-reference.md)
-- [Schema Validation](docs/schema-validation.md)
-- [Security Considerations](docs/security.md)
-- [Advanced Usage](docs/advanced-usage.md)
+NekoConf offers comprehensive documentation for all its core features and advanced usage. For a better experience, each major topic is documented in a dedicated markdown file under the `docs/` directory. See below for quick links and summaries:
+
+| Topic | Description |
+|-------|-------------|
+| [Environment Variables](docs/environment-variables.md) | How to override config with environment variables, advanced patterns, and customization. |
+| [Event System](docs/event-system.md) | Real-time event handling, usage patterns, and best practices. |
+| [Web Server & REST API](docs/web-server.md) | Running the FastAPI server, REST API endpoints, Web UI, and security. |
+| [CLI Reference](docs/cli-reference.md) | Full command-line usage, options, and examples. |
+| [Schema Validation](docs/schema-validation.md) | Using JSON Schema for config validation, error handling, and tips. |
+| [Security Considerations](docs/security.md) | API key usage, best practices, and deployment security. |
+| [Advanced Usage](docs/advanced-usage.md) | Deep dives: concurrency, integration, dynamic reload, and more. |
+
+For installation, quick start, and integration examples, see above sections. For detailed guides, visit the linked docs.
 
 ## Contributing
 
