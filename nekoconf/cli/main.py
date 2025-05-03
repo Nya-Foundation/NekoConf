@@ -43,8 +43,8 @@ def _create_parser() -> argparse.ArgumentParser:
     server_parser.add_argument(
         "--host",
         type=str,
-        default="127.0.0.1",
-        help="Host to run the server on (default: 127.0.0.1)",
+        default="0.0.0.0",
+        help="Host to run the server on (default: 0.0.0.0)",
     )
     server_parser.add_argument(
         "--port",
@@ -385,7 +385,7 @@ def handle_import_command(args: argparse.Namespace, logger: Optional[logging.Log
 
         # Load import data
         try:
-            import_data = load_file(import_path)
+            import_data = load_file(import_path, logger=logger)
         except Exception as e:
             logger.error(f"Error loading import file: {e}")
             return 1
@@ -483,7 +483,7 @@ def handle_init_command(args: argparse.Namespace, logger: Optional[logging.Logge
 
             try:
                 # Load template and save as new config
-                template_data = load_file(template_path)
+                template_data = load_file(template_path, logger=logger)
                 save_file(config_path, template_data)
                 logger.info(f"Created new configuration file from template: {config_path}")
             except Exception as e:

@@ -3,16 +3,27 @@
 import os
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import pytest
 from fastapi.testclient import TestClient
 
-from nekoconf.core.config import NekoConfigManager
 from nekoconf.core.helper import NekoConfigClient
-from nekoconf.core.validator import NekoSchemaValidator
+from nekoconf.core.config import NekoConfigManager
+from nekoconf.core.eval import NekoSchemaValidator
 from nekoconf.server.app import NekoConfigServer
-from tests.test_helpers import AsyncObserver, ConfigTestHelper, SyncObserver
+from tests.test_helpers import ConfigTestHelper
+
+# Configure pytest to handle async by default
+pytest_plugins = ["pytest_asyncio"]
+
+
+# Set asyncio mode
+@pytest.fixture(autouse=True)
+def anyio_backend():
+    """Set the anyio backend to asyncio."""
+    return "asyncio"
+
 
 # Test constants
 TEST_API_KEY = "test-api-key"
@@ -204,12 +215,6 @@ def error_schema() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def test_observer_results() -> List[Dict[str, Any]]:
-    """Create a list to track observer notifications."""
-    return []
-
-
 # Core component fixtures
 @pytest.fixture
 def config_manager(test_config_file, sample_config):
@@ -280,30 +285,6 @@ def config_api(config_file) -> NekoConfigClient:
 def config_api_with_schema(config_file, schema_file) -> NekoConfigClient:
     """Create a NekoConfigClient instance with schema for testing."""
     return NekoConfigClient(config_file, schema_file)
-
-
-# Observer fixtures
-@pytest.fixture
-def sync_observer() -> SyncObserver:
-    """Create a SyncObserver instance for testing."""
-    return SyncObserver()
-
-
-@pytest.fixture
-def async_observer() -> AsyncObserver:
-    """Create an AsyncObserver instance for testing."""
-    return AsyncObserver()
-
-
-# Cleanup fixture to reset observers between tests
-@pytest.fixture(autouse=True)
-def reset_observers(sync_observer, async_observer):
-    """Reset observers between tests."""
-    yield
-    if hasattr(sync_observer, "reset"):
-        sync_observer.reset()
-    if hasattr(async_observer, "reset"):
-        async_observer.reset()
 
 
 @pytest.fixture

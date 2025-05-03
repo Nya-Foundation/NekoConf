@@ -3,9 +3,13 @@
 This module provides a web interface for managing configuration files.
 """
 
+import asyncio
 import importlib.resources
 import json
 import logging
+import signal
+import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -97,6 +101,8 @@ class NekoConfigServer:
         self.config = config
         self.read_only = read_only
         self.logger = logger or config.logger or getLogger(__name__)
+        self._shutdown_requested = False
+        self._server = None
 
         # Try to get the static directory using importlib.resources (Python 3.7+)
         # Path adjusted for the new location within the 'web' subpackage
@@ -105,11 +111,23 @@ class NekoConfigServer:
 
         self.logger.info(f"Static resources directory set to: {self.static_dir.resolve()}")
 
+        # Define the lifespan context manager for the app
+        @asynccontextmanager
+        async def lifespan(app: FastAPI):
+            # Startup code (previously in on_startup)
+            self.logger.info("Starting up NekoConf server...")
+            yield
+            # Shutdown code (previously in on_shutdown)
+            self.logger.info("Shutting down NekoConf server...")
+            await self._cleanup_on_shutdown()
+
         self.app = FastAPI(
             title="NekoConf",
             description="A cute configuration management tool",
             version=__version__,
+            lifespan=lifespan,  # Use the lifespan context manager
         )
+
         self.ws_manager = NekoWsNotifier(logger=self.logger)
 
         # Add CORS middleware
@@ -126,11 +144,43 @@ class NekoConfigServer:
             self.auth = NekoAuthGuard(api_key=api_key)  # Pass api_key to AuthManager
             self.app.add_middleware(AuthMiddleware, auth=self.auth, logger=self.logger)
 
-        # Register as configuration observer
-        self.config.register_observer(self._on_config_change)
-
         # Set up routes
         self._setup_routes()
+
+        # Set up signal handlers
+        self._setup_signal_handlers()
+
+    def _setup_signal_handlers(self):
+        """Set up signal handlers for graceful shutdown."""
+
+        def signal_handler(sig, frame):
+            self.logger.info(f"Received signal {sig}, initiating shutdown...")
+            self._shutdown_requested = True
+            self._cleanup_resources()
+
+            # Exit gracefully after cleanup
+            sys.exit(0)
+
+        # Register signal handlers
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+
+    async def _cleanup_on_shutdown(self):
+        """Cleanup resources when FastAPI shuts down."""
+        self.logger.info("FastAPI shutdown event triggered, cleaning up resources...")
+        self._cleanup_resources()
+
+    def _cleanup_resources(self):
+        """Clean up all resources used by the server."""
+        try:
+            # Clean up configuration manager resources (including lock files)
+            if hasattr(self, "config") and self.config:
+                self.logger.info("Cleaning up configuration resources...")
+                self.config.cleanup()
+
+            self.logger.info("Cleanup completed")
+        except Exception as e:
+            self.logger.error(f"Error during cleanup: {e}")
 
     def _setup_routes(self) -> None:
         """Set up API routes and static file serving."""
@@ -145,7 +195,7 @@ class NekoConfigServer:
         def get_config_path(key_path: str):
             """Get a specific configuration path."""
 
-            # convert key_path to dot notation
+            # convert key_path to JMESPath expressions
             key_path = key_path.replace("/", ".")
 
             value = self.config.get(key_path)
@@ -188,7 +238,7 @@ class NekoConfigServer:
             if self.read_only:
                 raise HTTPException(status_code=403, detail="Read-only mode is enabled")
 
-            # convert key_path to dot notation
+            # convert key_path to JMESPath expressions
             key_path = key_path.replace("/", ".")
 
             self.config.set(key_path, data.get("value"))
@@ -202,7 +252,7 @@ class NekoConfigServer:
             if self.read_only:
                 raise HTTPException(status_code=403, detail="Read-only mode is enabled")
 
-            # convert key_path to dot notation
+            # convert key_path to JMESPath expressions
             key_path = key_path.replace("/", ".")
 
             if self.config.delete(key_path):
@@ -256,6 +306,30 @@ class NekoConfigServer:
                     "styles.css", {"request": request}, media_type="text/css"
                 )
 
+        # Add health check and shutdown endpoints
+        @self.app.get("/health")
+        def health_check():
+            """Health check endpoint."""
+            return {"status": "ok", "version": __version__}
+
+        @self.app.post("/shutdown")
+        async def trigger_shutdown():
+            """Trigger a graceful shutdown of the server."""
+            if not self.read_only:  # Only allow in non-read-only mode for security
+                self.logger.info("Shutdown requested via API")
+                # Schedule shutdown to happen after response is sent
+                asyncio.create_task(self._delayed_shutdown())
+                return {"status": "shutdown_initiated"}
+            raise HTTPException(status_code=403, detail="Shutdown not allowed in read-only mode")
+
+    async def _delayed_shutdown(self):
+        """Perform delayed shutdown to allow response to be sent first."""
+        await asyncio.sleep(0.5)  # Short delay to ensure response is sent
+        self._cleanup_resources()
+        if self._server:
+            self.logger.info("Stopping server...")
+            self._server.should_exit = True
+
     async def _on_config_change(self, config_data: Dict[str, Any]) -> None:
         """Handle configuration changes.
 
@@ -266,7 +340,7 @@ class NekoConfigServer:
 
     async def start_background(
         self,
-        host: str = "127.0.0.1",
+        host: str = "0.0.0.0",
         port: int = 8000,
         reload: bool = False,
     ):
@@ -276,11 +350,12 @@ class NekoConfigServer:
 
         config = uvicorn.Config(app=self.app, host=host, port=port, log_level="info", reload=reload)
         server = uvicorn.Server(config)
+        self._server = server
         await server.serve()
 
     def run(
         self,
-        host: str = "127.0.0.1",
+        host: str = "0.0.0.0",
         port: int = 8000,
         reload: bool = False,
     ) -> None:
@@ -293,4 +368,21 @@ class NekoConfigServer:
         """
         self.logger.info(f"Starting NekoConf Server at http://{host}:{port}")
 
-        uvicorn.run(app=self.app, host=host, port=port, reload=reload, log_config=None)
+        try:
+            # Create a custom uvicorn config and server
+            config = uvicorn.Config(
+                app=self.app, host=host, port=port, reload=reload, log_config=None
+            )
+            server = uvicorn.Server(config)
+            self._server = server
+
+            # Run the server
+            server.run()
+        except KeyboardInterrupt:
+            self.logger.info("Server interrupted, cleaning up...")
+            self._cleanup_resources()
+        except Exception as e:
+            self.logger.error(f"Server error: {e}")
+            self._cleanup_resources()
+        finally:
+            self.logger.info("Server stopped")
