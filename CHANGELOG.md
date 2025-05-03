@@ -1,6 +1,28 @@
 # CHANGELOG
 
 
+## v0.1.10 (2025-05-03)
+
+### Bug Fixes
+
+- Signal handling, adjust ci to skip license check
+  ([`db5f5b8`](https://github.com/Nya-Foundation/NekoConf/commit/db5f5b86d348df4a239a8cf039118e18d65d297c))
+
+### Chores
+
+- Refine scan.yaml
+  ([`e9cce86`](https://github.com/Nya-Foundation/NekoConf/commit/e9cce8618eb99d883ce3097f950dbb6216b0af5b))
+
+- Remove test case for forced shutdown
+  ([`26fc549`](https://github.com/Nya-Foundation/NekoConf/commit/26fc54974ff516486cb122ca67623b63e5ac37fb))
+
+- **format**: Apply automatic formatting [skip ci]
+  ([`67560ca`](https://github.com/Nya-Foundation/NekoConf/commit/67560ca91a4213d6a8928912026e7c7fbfe41416))
+
+- **format**: Apply automatic formatting [skip ci]
+  ([`cae0629`](https://github.com/Nya-Foundation/NekoConf/commit/cae062987b4411fe4cb5ee279bab8a69c07ac4fb))
+
+
 ## v0.1.9 (2025-05-03)
 
 ### Bug Fixes
