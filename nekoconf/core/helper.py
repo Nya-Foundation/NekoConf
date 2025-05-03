@@ -36,6 +36,7 @@ class NekoConfigClient:
         config_path: Union[str, Path],
         schema_path: Optional[Union[str, Path]] = None,
         logger: Optional[logging.Logger] = None,
+        **kwargs: Any,
     ):
         """Initialize the configuration API.
 
@@ -45,7 +46,7 @@ class NekoConfigClient:
         """
         self.logger = logger or getLogger(__name__)
 
-        self.config = NekoConfigManager(config_path, schema_path, self.logger)
+        self.config = NekoConfigManager(config_path, schema_path, self.logger, **kwargs)
         self.config.load()
 
         self.logger.debug(f"Initialized NekoConfigClient with {config_path}")

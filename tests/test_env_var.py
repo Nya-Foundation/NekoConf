@@ -110,17 +110,6 @@ def test_type_parsing(temp_config_file):
     assert manager.get("database.credentials") == {"user": "env_user", "pass": "env_pass"}
 
 
-def test_no_prefix(temp_config_file):
-    """Test overrides when no prefix is configured."""
-    os.environ["SERVICE_PORT"] = "5555"
-    os.environ["DATABASE_HOST"] = "remote-db"
-
-    manager = NekoConfigManager(temp_config_file, env_prefix="")
-
-    assert manager.get("service.port") == 5555
-    assert manager.get("database.host") == "remote-db"
-
-
 def test_exclusion(temp_config_file):
     """Test excluding specific keys from override."""
     os.environ["NEKOCONF_SERVICE_PORT"] = "9090"

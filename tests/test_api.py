@@ -2,7 +2,7 @@
 
 import pytest
 
-from nekoconf.core.client import NekoConfigClient
+from nekoconf.core.helper import NekoConfigClient
 
 
 class TestNekoConfigClient:

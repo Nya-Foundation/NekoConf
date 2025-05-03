@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from nekoconf.core.client import NekoConfigClient
+from nekoconf.core.helper import NekoConfigClient
 from nekoconf.core.config import NekoConfigManager
 from nekoconf.core.utils import load_file, save_file
 

@@ -7,7 +7,7 @@ import tempfile
 
 import pytest
 
-from nekoconf.core.client import NekoConfigClient
+from nekoconf.core.helper import NekoConfigClient
 from nekoconf.core.config import NekoConfigManager
 from nekoconf.core.event import EventType
 

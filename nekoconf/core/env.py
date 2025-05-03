@@ -50,6 +50,12 @@ class EnvOverrideHandler:
         self.preserve_case = preserve_case
         self.strict_parsing = strict_parsing
 
+        if self.prefix == "":
+            self.logger.warning(
+                "Environment variable overrides are enabled without a prefix is not recommended. "
+                "This may lead to conflicts with internal variables."
+            )
+
         # Problematic characters in variable names
         self.problematic_chars = ["[", "]", "*", "?"]
 
