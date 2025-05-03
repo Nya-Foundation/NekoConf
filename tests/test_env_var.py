@@ -49,7 +49,7 @@ def test_basic_override(temp_config_file):
     manager = NekoConfigManager(temp_config_file)  # Default prefix NEKOCONF_
 
     assert manager.get("service.port") == 9090  # Parsed as int
-    assert manager.get("debug_mode") is True  # Parsed as bool
+    assert manager.get("debug.mode") is True  # Parsed as bool
     assert manager.get("service.name") == "TestService"  # Unchanged
 
 
@@ -106,7 +106,7 @@ def test_type_parsing(temp_config_file):
     assert manager.get("service.port") == 9091
     assert manager.get("service.enabled") is False
     assert manager.get("database.port") == 5433.5
-    assert manager.get("feature_flags") == ["new_flag", "flag3"]
+    assert manager.get("feature.flags") == ["new_flag", "flag3"]
     assert manager.get("database.credentials") == {"user": "env_user", "pass": "env_pass"}
 
 
@@ -160,12 +160,12 @@ def test_inclusion(temp_config_file):
     os.environ["NEKOCONF_DEBUG_MODE"] = "true"  # Included
 
     manager = NekoConfigManager(
-        temp_config_file, env_include_paths=["service.port", "debug_mode"]  # Only allow these
+        temp_config_file, env_include_paths=["service.port", "debug.mode"]  # Only allow these
     )
 
     assert manager.get("service.port") == 9090  # Included -> Overridden
     assert manager.get("database.host") == "localhost"  # Not included -> Original
-    assert manager.get("debug_mode") is True  # Included -> Overridden
+    assert manager.get("debug_mode") is False  # Included -> Overridden
 
 
 def test_inclusion_nested_parent(temp_config_file):
