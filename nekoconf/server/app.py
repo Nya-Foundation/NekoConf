@@ -89,7 +89,7 @@ class NekoConfigServer:
         api_key: Optional[str] = None,
         read_only: bool = False,
         logger: Optional[logging.Logger] = None,
-        register_signals: bool = True,  # Add this parameter
+        register_signals: bool = False,  # Add this parameter
     ) -> None:
         """Initialize the api and web server.
 
@@ -156,15 +156,22 @@ class NekoConfigServer:
     def _setup_signal_handlers(self):
         """Set up signal handlers for graceful shutdown."""
 
+        # Store original signal handlers so we can chain them
+        original_sigint = signal.getsignal(signal.SIGINT)
+        original_sigterm = signal.getsignal(signal.SIGTERM)
+
         def signal_handler(sig, frame):
-            self.logger.info(f"Received signal {sig}, initiating shutdown...")
+            self.logger.info(f"Received signal {sig}, initiating cleanup...")
             self._shutdown_requested = True
             self._cleanup_resources()
 
-            # Don't call sys.exit() - let the parent application handle process termination
-            # Instead, just set a flag and perform cleanup
+            # Call original handler after cleanup
+            # This ensures the parent app's signal handling still works
+            if callable(original_sigint if sig == signal.SIGINT else original_sigterm):
+                original_handler = original_sigint if sig == signal.SIGINT else original_sigterm
+                original_handler(sig, frame)
 
-        # Register signal handlers
+        # Register signal handlers for SIGINT and SIGTERM
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
 
