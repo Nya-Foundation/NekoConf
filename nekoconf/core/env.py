@@ -140,12 +140,13 @@ class EnvOverrideHandler:
         prefix_to_match = f"{self.prefix}_" if self.prefix else ""
         min_prefix_len = len(prefix_to_match)
 
-        # Get all relevant environment variables that match our prefix
+        # Get only environment variables that match our prefix
         env_vars = self._get_matching_env_vars(prefix_to_match)
 
         for env_var_name, env_var_value_str in env_vars:
             # Derive potential config key from env var name
-            key_part = env_var_name[min_prefix_len:]
+            # The prefix check is already done by _get_matching_env_vars
+            key_part = env_var_name[min_prefix_len:] if self.prefix else env_var_name
 
             # Basic validation on key format
             if not self._validate_key_format(key_part, env_var_name):
@@ -177,7 +178,8 @@ class EnvOverrideHandler:
         """Get environment variables that match our prefix.
 
         Args:
-            prefix_to_match: The prefix to match against environment variable names
+            prefix_to_match: The prefix to match against environment variable names.
+                             If self.prefix is empty, this will be empty, and we match all non-internal vars.
 
         Returns:
             List of (env_var_name, env_var_value) tuples that match the prefix
@@ -185,16 +187,20 @@ class EnvOverrideHandler:
         matching_vars = []
 
         for env_var_name, env_var_value in os.environ.items():
-            # Basic prefix check
+            # Basic checks
             if not env_var_name:
                 continue
 
-            if self.prefix and not env_var_name.startswith(prefix_to_match):
-                continue
-
-            if not self.prefix and (not env_var_name or env_var_name.startswith("_")):
-                # Avoid internal vars if no prefix
-                continue
+            if self.prefix:
+                # If prefix is set, only match variables starting with it
+                if not env_var_name.startswith(prefix_to_match):
+                    continue
+            else:
+                # If no prefix, avoid internal vars (e.g., starting with '_')
+                # and potentially other system-specific vars if needed.
+                # For now, just skip empty or underscore-prefixed ones.
+                if env_var_name.startswith("_"):
+                    continue
 
             matching_vars.append((env_var_name, env_var_value))
 
