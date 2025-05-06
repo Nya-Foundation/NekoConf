@@ -1,6 +1,33 @@
 # CHANGELOG
 
 
+## v1.0.0 (2025-05-06)
+
+### Bug Fixes
+
+- Drop support for python3.9, 3.10
+  ([`e354a8e`](https://github.com/Nya-Foundation/NekoConf/commit/e354a8e0b42dd6596c639df36d65d7a1471cc2ad))
+
+- Drop support for python3.9, 3.10
+  ([`e076d14`](https://github.com/Nya-Foundation/NekoConf/commit/e076d14bea6ce6803acad3ca4b760e9145a739d0))
+
+### Chores
+
+- **format**: Apply automatic formatting [skip ci]
+  ([`2c0a21b`](https://github.com/Nya-Foundation/NekoConf/commit/2c0a21b096e087ce3236b987fff6270982707332))
+
+### Features
+
+- **major**: Enhance event notification, path matching logic, remote read-only capabilites, and more
+  ([`afcbd35`](https://github.com/Nya-Foundation/NekoConf/commit/afcbd3536cb1a66dd6bce778e4c099f187b98f93))
+
+BREAKING CHANGE: Major Release, complete refactor
+
+### Breaking Changes
+
+- **major**: Major Release, complete refactor
+
+
 ## v0.1.11 (2025-05-03)
 
 ### Bug Fixes
