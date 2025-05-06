@@ -14,13 +14,13 @@ from unittest import TestCase, mock
 import filelock
 import pytest
 
-from nekoconf.core.lock import LockManager
+from nekoconf.utils.lock import LockManager
 
 
 def increment_file_number(path):
     import time
 
-    from nekoconf.core.lock import LockManager
+    from nekoconf.utils.lock import LockManager
 
     mgr = LockManager(path)
     with mgr:

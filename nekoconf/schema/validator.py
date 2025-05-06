@@ -1,12 +1,16 @@
 """Schema validation for configuration files."""
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Union
 
+# These imports should always succeed because this module is only imported
+# when HAS_SCHEMA_DEPS is True in __init__.py
 import jsonschema
-import yaml
 from jsonschema import validators
+
+from ..utils.helper import getLogger
 
 try:
     import tomli  # Python < 3.11
@@ -20,12 +24,15 @@ except ImportError:
 class NekoSchemaValidator:
     """Validates configuration data against a schema using jsonschema."""
 
-    def __init__(self, schema: Union[Dict[str, Any], str, Path]):
+    def __init__(self, schema: Union[Dict[str, Any], str, Path], logger: logging.Logger = None):
         """Initialize the schema validator.
 
         Args:
             schema: The schema to validate against
+            logger: Optional logger instance
         """
+        self.logger = logger or getLogger(__name__)
+
         if isinstance(schema, (str, Path)):
             self.schema = self._load_schema_file(schema)
 
@@ -40,11 +47,14 @@ class NekoSchemaValidator:
         self.validator = validators.validator_for(self.schema)(self.schema)
 
     @classmethod
-    def from_file(cls, schema_path: Union[str, Path]) -> "NekoSchemaValidator":
+    def from_file(
+        cls, schema_path: Union[str, Path], logger: logging.Logger = None
+    ) -> "NekoSchemaValidator":
         """Create a schema validator from a schema file.
 
         Args:
             schema_path: Path to the schema file (JSON, YAML, or TOML format)
+            logger: Optional logger instance
 
         Returns:
             A NekoValidator instance
@@ -53,7 +63,7 @@ class NekoSchemaValidator:
             FileNotFoundError: If the schema file doesn't exist
             ValueError: If the file format is unsupported or the file content is invalid
         """
-        return cls(schema_path)
+        return cls(schema_path, logger)
 
     def _load_schema_file(self, schema_path: Union[str, Path]) -> Dict[str, Any]:
         """Load schema from a file.
@@ -78,7 +88,11 @@ class NekoSchemaValidator:
 
             if file_extension in (".yaml", ".yml"):
                 try:
+                    import yaml
+
                     schema = yaml.safe_load(file_content) or {}
+                except ImportError:
+                    raise ImportError("YAML support requires 'pyyaml' package.")
                 except yaml.YAMLError as e:
                     raise ValueError(f"Invalid YAML format in schema file: {e}")
             elif file_extension == ".json":

@@ -25,7 +25,11 @@ class TestNekoConfigBase:
         assert manager.schema_path == schema_path
 
     def test_load_and_save(
-        self, config_manager: NekoConfigManager, sample_config, complex_sample_config, config_file
+        self,
+        config_manager: NekoConfigManager,
+        sample_config,
+        complex_sample_config,
+        config_file,
     ):
         """Test loading and saving configuration."""
         # Test loading

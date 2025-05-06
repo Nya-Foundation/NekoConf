@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch
 import pytest
 import yaml
 
-from nekoconf.core.utils import (
+from nekoconf.utils.helper import (
     create_file_if_not_exists,
     deep_merge,
     get_nested_value,
@@ -419,7 +419,10 @@ class TestDictionaryOperations:
         """
         # Nested merge
         a = {"server": {"host": "localhost", "port": 8000}, "client": {"timeout": 30}}
-        b = {"server": {"port": 9000, "debug": True}, "database": {"url": "sqlite:///test.db"}}
+        b = {
+            "server": {"port": 9000, "debug": True},
+            "database": {"url": "sqlite:///test.db"},
+        }
 
         result = deep_merge(b, a)
 
@@ -523,7 +526,10 @@ class TestDictionaryOperations:
                 {"name": "server2", "host": "host2.example.com", "role": "db"},
                 {"name": "server3", "host": "host3.example.com", "role": "cache"},
             ],
-            "clients": {"web": {"timeout": 30, "retries": 3}, "api": {"timeout": 10, "retries": 5}},
+            "clients": {
+                "web": {"timeout": 30, "retries": 3},
+                "api": {"timeout": 10, "retries": 5},
+            },
         }
 
         # Array indexing

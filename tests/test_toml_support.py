@@ -8,8 +8,8 @@ from pathlib import Path
 import pytest
 
 from nekoconf.core.config import NekoConfigManager
-from nekoconf.core.helper import NekoConfigClient
-from nekoconf.core.utils import load_file, save_file
+from nekoconf.core.wrapper import NekoConfigWrapper
+from nekoconf.utils.helper import load_file, save_file
 
 # Skip tests if tomli/tomli_w packages are not available
 try:
@@ -161,7 +161,7 @@ class TestTomlSupport:
     def test_client_toml_support(self):
         """Test NekoConfigClient with TOML files."""
         # Create a client with a TOML file
-        client = NekoConfigClient(self.toml_path)
+        client = NekoConfigWrapper(self.toml_path)
 
         # Set some values
         client.set("server.host", "example.com")

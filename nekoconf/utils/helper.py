@@ -3,6 +3,7 @@
 This module provides common utility functions used across the NekoConf package.
 """
 
+import copy
 import inspect
 import json
 import logging
@@ -21,6 +22,19 @@ except ImportError:
         import tomllib as tomli  # Python >= 3.11
     except ImportError:
         tomli = None  # TOML support will be disabled
+
+
+__all__ = [
+    "getLogger",
+    "create_file_if_not_exists",
+    "save_file",
+    "load_file",
+    "parse_value",
+    "deep_merge",
+    "get_nested_value",
+    "set_nested_value",
+    "is_async_callable",
+]
 
 
 def getLogger(
@@ -254,12 +268,15 @@ def parse_value(value_str: str) -> Any:
     return value_str
 
 
-def deep_merge(source: Dict[str, Any], destination: Dict[str, Any]) -> Dict[str, Any]:
+def deep_merge(
+    source: Dict[str, Any], destination: Dict[str, Any], in_place: bool = False
+) -> Dict[str, Any]:
     """Recursively merge two dictionaries.
 
     Args:
         source: Source dictionary to merge from
         destination: Destination dictionary to merge into
+        in_place: If True, modify destination in place; otherwise, return a new dict
 
     Returns:
         Merged dictionary
@@ -267,10 +284,14 @@ def deep_merge(source: Dict[str, Any], destination: Dict[str, Any]) -> Dict[str,
     if not isinstance(destination, dict) or not isinstance(source, dict):
         return source
 
-    result = destination.copy()
+    if in_place:
+        result = destination
+    else:
+        result = copy.deepcopy(destination)
+
     for key, value in source.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge(value, result[key])
+            result[key] = deep_merge(value, result[key], in_place)
         else:
             result[key] = value
     return result

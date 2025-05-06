@@ -8,7 +8,6 @@ import importlib.resources
 import json
 import logging
 import signal
-import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -16,12 +15,12 @@ from typing import Any, Dict, List, Optional
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 
 from nekoconf._version import __version__
 from nekoconf.core.config import NekoConfigManager  # Updated import path
-from nekoconf.core.utils import getLogger
+from nekoconf.utils.helper import getLogger
 
 from .auth import AuthMiddleware, NekoAuthGuard  # Relative import within web package
 
@@ -89,7 +88,7 @@ class NekoConfigServer:
         api_key: Optional[str] = None,
         read_only: bool = False,
         logger: Optional[logging.Logger] = None,
-        register_signals: bool = False,  # Add this parameter
+        register_signals: bool = True,  # Add this parameter
     ) -> None:
         """Initialize the api and web server.
 
@@ -108,10 +107,13 @@ class NekoConfigServer:
 
         # Try to get the static directory using importlib.resources (Python 3.7+)
         # Path adjusted for the new location within the 'web' subpackage
-        self.static_dir = Path(importlib.resources.files("nekoconf.server") / "static")
-        self.templates = Jinja2Templates(directory=str(self.static_dir))
+        self.www_dir = Path(importlib.resources.files("nekoconf.server") / "html")
+        self.static_dir = self.www_dir / "static"
 
-        self.logger.info(f"Static resources directory set to: {self.static_dir.resolve()}")
+        print(f"Static directory: {self.static_dir.resolve()}")
+        self.templates = Jinja2Templates(directory=str(self.www_dir))
+
+        self.logger.info(f"Static resources directory set to: {self.www_dir.resolve()}")
 
         # Define the lifespan context manager for the app
         @asynccontextmanager
@@ -148,10 +150,35 @@ class NekoConfigServer:
 
         # Set up routes
         self._setup_routes()
+        self._setup_config_change_listener()
 
         # Only set up signal handlers if requested
         if register_signals:
             self._setup_signal_handlers()
+
+    def _setup_config_change_listener(self):
+        """Set up a listener for configuration changes."""
+
+        from nekoconf.event.pipeline import EventType
+
+        # Register the handler for global configuration changes only
+        self.config.event_pipeline.register_handler(
+            self._on_config_change, EventType.CHANGE, path_pattern="@global"
+        )
+
+    async def _on_config_change(
+        self,
+        event_type=None,
+        path=None,
+        old_value=None,
+        new_value=None,
+        config_data=None,
+        **kwargs,
+    ) -> None:
+        self.logger.info("Configuration changed, broadcasting update to WebSocket clients")
+
+        # Broadcast the updated configuration to all connected WebSocket clients
+        await self.ws_manager.broadcast({"type": "update", "data": self.config.data})
 
     def _setup_signal_handlers(self):
         """Set up signal handlers for graceful shutdown."""
@@ -219,9 +246,16 @@ class NekoConfigServer:
             if self.read_only:
                 raise HTTPException(status_code=403, detail="Read-only mode is enabled")
 
-            self.config.update(data)
+            errors = self.config.validate_schema(data)
+            if errors:
+                self.logger.warning(f"Configuration validation errors: {errors}")
+                return {"valid": False, "errors": errors}
 
-            self.config.save()
+            is_updated = self.config.replace(data)
+
+            if is_updated:
+                self.config.save()
+
             return {"status": "success"}
 
         @self.app.post("/api/config/reload", response_class=JSONResponse)
@@ -237,7 +271,9 @@ class NekoConfigServer:
         async def validate_config():
             """Validate the current configuration against the schema."""
             errors = self.config.validate()
+
             if errors:
+                self.logger.warning(f"Configuration validation errors: {errors}")
                 return {"valid": False, "errors": errors}
             return {"valid": True}
 
@@ -252,6 +288,11 @@ class NekoConfigServer:
             key_path = key_path.replace("/", ".")
 
             self.config.set(key_path, data.get("value"))
+            errors = self.config.validate()
+            if errors:
+                self.logger.warning(f"Configuration validation errors: {errors}")
+                return {"valid": False, "errors": errors}
+
             self.config.save()
             return {"status": "success"}
 
@@ -266,6 +307,11 @@ class NekoConfigServer:
             key_path = key_path.replace("/", ".")
 
             if self.config.delete(key_path):
+                errors = self.config.validate()
+                if errors:
+                    self.logger.warning(f"Configuration validation errors: {errors}")
+                    return {"valid": False, "errors": errors}
+
                 self.config.save()
                 return {"status": "success"}
             else:
@@ -276,7 +322,7 @@ class NekoConfigServer:
             """WebSocket endpoint for real-time updates."""
             await self.ws_manager.connect(websocket)
             try:
-                # Send initial configuration
+                # Send initial configuratio`n
                 await websocket.send_json({"type": "config", "data": self.config.get()})
 
                 # Keep the connection open, handle incoming messages
@@ -291,7 +337,7 @@ class NekoConfigServer:
                 self.ws_manager.disconnect(websocket)
 
         # Serve static files if the directory exists
-        if self.static_dir.exists() and self.static_dir.is_dir():
+        if self.www_dir.exists() and self.www_dir.is_dir() and self.static_dir.exists():
             """Serve static files from the static directory."""
 
             @self.app.get("/", response_class=HTMLResponse)
@@ -299,22 +345,34 @@ class NekoConfigServer:
                 """Serve the main UI page."""
                 return self.templates.TemplateResponse("index.html", {"request": request})
 
+            @self.app.get("/favicon.ico")
+            async def get_favicon():
+                """Serve the favicon."""
+                return FileResponse(self.www_dir / "favicon.ico")
+
+            @self.app.get("/static/logo.svg")
+            async def get_logo():
+                """Serve the logo."""
+
+                return FileResponse(self.static_dir / "logo.svg")
+
             @self.app.get("/login.html", response_class=HTMLResponse)
             def get_login(request: Request):
                 """Serve the login page."""
-                return self.templates.TemplateResponse("login.html", {"return_path": "/"})
+                return self.templates.TemplateResponse(
+                    "login.html", {"request": request, "return_path": "/"}
+                )
 
             @self.app.get("/static/script.js")
-            def get_script(request: Request):
-                return self.templates.TemplateResponse(
-                    "script.js", {"request": request}, media_type="application/javascript"
+            async def get_script():
+                return FileResponse(
+                    self.static_dir / "script.js",
+                    media_type="application/javascript",
                 )
 
             @self.app.get("/static/styles.css")
-            def get_style(request: Request):
-                return self.templates.TemplateResponse(
-                    "styles.css", {"request": request}, media_type="text/css"
-                )
+            async def get_style():
+                return FileResponse(self.static_dir / "styles.css", media_type="text/css")
 
         # Add health check and shutdown endpoints
         @self.app.get("/health")
@@ -339,14 +397,6 @@ class NekoConfigServer:
         if self._server:
             self.logger.info("Stopping server...")
             self._server.should_exit = True
-
-    async def _on_config_change(self, config_data: Dict[str, Any]) -> None:
-        """Handle configuration changes.
-
-        Args:
-            config_data: Updated configuration data
-        """
-        await self.ws_manager.broadcast({"type": "config", "data": config_data})
 
     async def start_background(
         self,
@@ -380,9 +430,7 @@ class NekoConfigServer:
 
         try:
             # Create a custom uvicorn config and server
-            config = uvicorn.Config(
-                app=self.app, host=host, port=port, reload=reload, log_config=None
-            )
+            config = uvicorn.Config(app=self.app, host=host, port=port, reload=reload)
             server = uvicorn.Server(config)
             self._server = server
 
