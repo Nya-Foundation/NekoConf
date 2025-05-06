@@ -14,9 +14,14 @@ from unittest.mock import Mock, patch
 import pytest
 
 from nekoconf.core.config import NekoConfigManager
-from nekoconf.core.event import EventContext, EventHandler, EventType, NekoEventPipeline
-from nekoconf.core.helper import NekoConfigClient
-from nekoconf.core.utils import is_async_callable
+from nekoconf.core.wrapper import NekoConfigWrapper
+from nekoconf.event.pipeline import (
+    EventContext,
+    EventHandler,
+    EventType,
+    NekoEventPipeline,
+)
+from nekoconf.utils.helper import is_async_callable
 
 
 class TestEventPipeline:
@@ -118,7 +123,9 @@ class TestEventPipeline:
 
         # Register handler for multiple event types
         self.pipeline.register_handler(
-            test_handler, [EventType.CHANGE, EventType.DELETE], path_pattern="server.host"
+            test_handler,
+            [EventType.CHANGE, EventType.DELETE],
+            path_pattern="server.host",
         )
 
         # Emit events of different types
@@ -196,54 +203,6 @@ class TestEventPipeline:
         assert events_received.count("database.pool_size") == 1  # Child path match
         assert events_received.count("other.path") == 0  # No match
 
-    @pytest.mark.asyncio
-    async def test_async_event_handlers(self):
-        """Test asynchronous event handlers with emit_async.
-
-        Verifies:
-        1. Async handlers are correctly executed via emit_async
-        2. Async handlers receive correct event context
-        3. Multiple async handlers run concurrently
-        """
-        events_received = []
-        execution_order = []
-
-        # Define slow and fast async handlers to test concurrent execution
-        async def slow_async_handler(path, new_value, **kwargs):
-            await asyncio.sleep(0.05)  # Longer delay
-            events_received.append((path, new_value, "slow"))
-            execution_order.append("slow")
-
-        async def fast_async_handler(path, new_value, **kwargs):
-            await asyncio.sleep(0.01)  # Short delay
-            events_received.append((path, new_value, "fast"))
-            execution_order.append("fast")
-
-        # Register async handlers
-        self.pipeline.register_handler(
-            slow_async_handler, EventType.CHANGE, path_pattern="server.*"
-        )
-        self.pipeline.register_handler(
-            fast_async_handler, EventType.CHANGE, path_pattern="server.*"
-        )
-
-        # Emit events asynchronously
-        start_time = asyncio.get_event_loop().time()
-        await self.pipeline.emit_async(EventType.CHANGE, path="server.host", new_value="0.0.0.0")
-        elapsed_time = asyncio.get_event_loop().time() - start_time
-
-        # Check that both async handlers were called with correct parameters
-        assert len(events_received) == 2
-        assert ("server.host", "0.0.0.0", "slow") in events_received
-        assert ("server.host", "0.0.0.0", "fast") in events_received
-
-        # Check that handlers ran concurrently (fast should finish before slow)
-        assert execution_order == ["fast", "slow"]
-
-        # If handlers ran concurrently, total time should be closer to the slower handler
-        # time than the sum of both handler times
-        assert elapsed_time < 0.08  # Less than sum (0.05 + 0.01)
-
     def test_sync_calling_async_handler(self):
         """Test synchronous emit calling async handlers.
 
@@ -294,33 +253,6 @@ class TestEventPipeline:
         # Check execution order
         assert execution_order == ["high", "medium", "low"]
 
-    @pytest.mark.asyncio
-    async def test_async_priority_ordering(self):
-        """Test that async handlers are executed in priority order.
-
-        Verifies that async handlers with lower priority numbers are executed
-        before handlers with higher priority numbers, even with different execution times.
-        """
-        start_times = {}
-
-        async def fast_low_priority(**kwargs):
-            start_times["low"] = asyncio.get_event_loop().time()
-            await asyncio.sleep(0.01)
-
-        async def slow_high_priority(**kwargs):
-            start_times["high"] = asyncio.get_event_loop().time()
-            await asyncio.sleep(0.05)
-
-        # Register handlers with different priorities
-        self.pipeline.register_handler(fast_low_priority, EventType.CHANGE, priority=100)
-        self.pipeline.register_handler(slow_high_priority, EventType.CHANGE, priority=1)
-
-        # Emit event asynchronously
-        await self.pipeline.emit_async(EventType.CHANGE)
-
-        # High priority handler should start before low priority, even though it's slower
-        assert start_times["high"] < start_times["low"]
-
     def test_error_handling_in_sync_handlers(self):
         """Test error handling in synchronous handlers.
 
@@ -343,62 +275,23 @@ class TestEventPipeline:
 
         # Register handlers including one that raises an exception
         self.pipeline.register_handler(good_handler, EventType.CHANGE, priority=1)
-        self.pipeline.register_handler(bad_handler, EventType.CHANGE, priority=2)
+        handler = self.pipeline.register_handler(bad_handler, EventType.CHANGE, priority=2)
         self.pipeline.register_handler(another_good_handler, EventType.CHANGE, priority=3)
 
-        # Mock the logger to capture error logs
-        with patch("logging.error") as mock_logging_error:
-            self.pipeline.emit(EventType.CHANGE)
+        # Mock the logger
+        mock_logger = Mock()
+        handler.logger = mock_logger
 
-            # Check that error was logged
-            mock_logging_error.assert_called()
+        # Emit event which should trigger the error
+        self.pipeline.emit(EventType.CHANGE)
 
-            # Check for error message in the log call
-            error_message = mock_logging_error.call_args[0][0]
-            assert "Error in event handler" in error_message
+        # Verify error was logged
+        mock_logger.error.assert_called_once()
+        error_message = mock_logger.error.call_args[0][0]
+        assert "Error in event handler bad_handler" in error_message
 
         # All handlers should have executed despite the error
         assert executed_handlers == ["good", "bad", "another_good"]
-
-    @pytest.mark.asyncio
-    async def test_error_handling_in_async_handlers(self):
-        """Test error handling in asynchronous handlers.
-
-        Verifies:
-        1. Errors in async handlers are caught and logged
-        2. Errors don't prevent other async handlers from executing
-        3. Error details are properly logged
-        """
-        executed_handlers = []
-
-        async def good_async_handler(**kwargs):
-            await asyncio.sleep(0.01)
-            executed_handlers.append("good_async")
-
-        async def bad_async_handler(**kwargs):
-            await asyncio.sleep(0.01)
-            executed_handlers.append("bad_async")
-            raise ValueError("Simulated error in async handler")
-
-        # Register handlers including one that raises an exception
-        self.pipeline.register_handler(good_async_handler, EventType.CHANGE)
-        self.pipeline.register_handler(bad_async_handler, EventType.CHANGE)
-
-        # Mock the logger to capture error logs
-        with patch("logging.error") as mock_logging_error:
-            await self.pipeline.emit_async(EventType.CHANGE)
-
-            # Check that error was logged
-            mock_logging_error.assert_called()
-
-            # Check for error message in the log call
-            error_message = mock_logging_error.call_args[0][0]
-            assert "Error in event handler" in error_message
-
-        # Both handlers should have executed despite the error
-        assert len(executed_handlers) == 2
-        assert "good_async" in executed_handlers
-        assert "bad_async" in executed_handlers
 
     def test_event_context_propagation(self):
         """Test that event context is properly propagated to handlers.
@@ -451,7 +344,7 @@ class TestEventPipeline:
         events_received = []
 
         # Create a config manager with event pipeline
-        config = NekoConfigManager(self.temp_path)
+        config = NekoConfigManager(self.temp_path, event_emission_enabled=True)
 
         # Register handlers using decorator syntax
         @config.on_change("server.host")
@@ -484,7 +377,7 @@ class TestEventPipeline:
         events_received = []
 
         # Create a config manager with event pipeline
-        config = NekoConfigManager(self.temp_path)
+        config = NekoConfigManager(self.temp_path, event_emission_enabled=True)
 
         # Register async handler using decorator syntax
         @config.on_change("server.host")
@@ -512,7 +405,7 @@ class TestEventPipeline:
         events_received = []
 
         # Create a client
-        client = NekoConfigClient(self.temp_path)
+        client = NekoConfigWrapper(self.temp_path, event_emission_enabled=True)
 
         # Register handler using client's on_change
         @client.on_change("server.port")
@@ -542,7 +435,7 @@ class TestEventPipeline:
         events = []
 
         # Create a config manager
-        config = NekoConfigManager(self.temp_path)
+        config = NekoConfigManager(self.temp_path, event_emission_enabled=True)
 
         # Register handlers for different event types
         @config.on_event(EventType.CREATE)
@@ -644,7 +537,7 @@ class TestEventPipeline:
         assert not handler.matches(non_matching_path_context)
 
         # Test handler execution
-        handler.handle_sync(matching_context)
+        handler.handle_event(matching_context)
         callback.assert_called_once()
 
         # Check callback arguments
@@ -663,10 +556,10 @@ class TestEventPipeline:
         events = []
 
         # Create a config manager
-        config = NekoConfigManager(self.temp_path)
+        config = NekoConfigManager(self.temp_path, event_emission_enabled=True)
 
         @config.on_event(EventType.UPDATE)
-        def handle_update(path, old_value, new_value, **kwargs):
+        def handle_update(event_type, path, old_value, new_value, config_data, **kwargs):
             events.append((path, old_value, new_value))
 
         # Set an existing value (should trigger UPDATE and CHANGE)
@@ -694,7 +587,7 @@ class TestEventPipeline:
         reload_events = []
 
         # Create a config manager
-        config = NekoConfigManager(self.temp_path)
+        config = NekoConfigManager(self.temp_path, event_emission_enabled=True)
 
         @config.on_event(EventType.RELOAD)
         def handle_reload(old_value, new_value, **kwargs):

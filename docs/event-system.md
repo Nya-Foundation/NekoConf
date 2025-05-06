@@ -17,7 +17,7 @@ from nekoconf import NekoConfigManager
 config = NekoConfigManager("config.yaml")
 
 @config.on_change("database.*")
-def handle_db_change(path, old_value, new_value, **kwargs):
+def handle_db_change(event_type, path, old_value, new_value, config_data, **kwargs):
     print(f"Database config {path} changed: {old_value} -> {new_value}")
 ```
 
@@ -35,12 +35,12 @@ def feature_flag_handler(event_type, path, new_value, **kwargs):
 
 ```python
 @config.on_change("logging.level", priority=10)
-def update_logging_level(path, old_value, new_value, **kwargs):
+def update_logging_level(event_type, path, old_value, new_value, config_data, **kwargs):
     # Set log level before other handlers
     ...
 
 @config.on_change("logging.*", priority=100)
-def generic_logging_change(path, old_value, new_value, **kwargs):
+def generic_logging_change(event_type, path, old_value, new_value, config_data, **kwargs):
     ...
 ```
 

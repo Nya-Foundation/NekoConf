@@ -1,13 +1,24 @@
 # NekoConf
 
-[![PyPI version](https://img.shields.io/pypi/v/nekoconf.svg)](https://pypi.org/project/nekoconf/)
-[![Python versions](https://img.shields.io/pypi/pyversions/nekoconf.svg)](https://pypi.org/project/nekoconf/)
-[![License](https://img.shields.io/github/license/nya-foundation/nekoconf.svg)](https://github.com/nya-foundation/nekoconf/blob/main/LICENSE)
-[![Code Coverage](https://codecov.io/gh/nya-foundation/nekoconf/branch/main/graph/badge.svg)](https://codecov.io/gh/nya-foundation/nekoconf)
-[![CodeQL & Dependencies Scan](https://github.com/nya-foundation/nekoconf/actions/workflows/scan.yml/badge.svg)](https://github.com/nya-foundation/nekoconf/actions/workflows/scan.yml)
-[![CI/CD Builds](https://github.com/nya-foundation/nekoconf/actions/workflows/publish.yml/badge.svg)](https://github.com/nya-foundation/nekoconf/actions/workflows/publish.yml)
+<div align="center">
+  <img src="https://raw.githubusercontent.com/Nya-Foundation/nekoconf/main/assets/banner.png" width="800" />
+  
+  <h3>The purr-fect balance of power and simplicity for configuration management.</h3>
+  
+  <div>
+    <a href="https://pypi.org/project/nekoconf/"><img src="https://img.shields.io/pypi/v/nekoconf.svg" alt="PyPI version"/></a>
+    <a href="https://pypi.org/project/nekoconf/"><img src="https://img.shields.io/pypi/pyversions/nekoconf.svg" alt="Python versions"/></a>
+    <a href="https://github.com/nya-foundation/nekoconf/blob/main/LICENSE"><img src="https://img.shields.io/github/license/nya-foundation/nekoconf.svg" alt="License"/></a>
+  </div>
+  
+  <div>
+    <a href="https://codecov.io/gh/nya-foundation/nekoconf"><img src="https://codecov.io/gh/nya-foundation/nekoconf/branch/main/graph/badge.svg" alt="Code Coverage"/></a>
+    <a href="https://github.com/nya-foundation/nekoconf/actions/workflows/scan.yml"><img src="https://github.com/nya-foundation/nekoconf/actions/workflows/scan.yml/badge.svg" alt="CodeQL & Dependencies Scan"/></a>
+    <a href="https://github.com/nya-foundation/nekoconf/actions/workflows/publish.yml"><img src="https://github.com/nya-foundation/nekoconf/actions/workflows/publish.yml/badge.svg" alt="CI/CD Builds"/></a>
+  </div>
+</div>
 
-## What is NekoConf?
+## 🐱 What is NekoConf?
 
 NekoConf is a dynamic and flexible configuration management system for Python applications. It simplifies handling configuration files (YAML, JSON, TOML) and provides real-time updates, environment variable overrides, and schema validation.
 
@@ -19,21 +30,50 @@ NekoConf is a dynamic and flexible configuration management system for Python ap
 | **Environment Overrides**    | Seamlessly override file settings with environment variables.               |
 | **Schema Validation**        | Ensure configuration integrity and prevent errors using JSON Schema.        |
 | **Concurrency Safe**         | Uses file locking to prevent race conditions during file access.            |
+| **Remote Configuration**     | Connect to a remote NekoConf server for centralized configuration.          |
 
 [!TIP]
 NekoConf is ideal for applications with complex configuration needs, microservice architectures, or any scenario where you need to update configuration without service restarts.
 
-## Installation
+[!NOTE]
+This project is currently in beta. We welcome feedback and contributions!
+
+## 📦 Installation
+
+NekoConf follows a modular design with optional dependencies for different features:
 
 ```bash
-# Basic installation
+# Basic installation with core features
 pip install nekoconf
 
-# Development tools
+# With web server (FastAPI-based)
+pip install nekoconf[server]
+
+# With schema validation
+pip install nekoconf[schema]
+
+# With remote configuration support
+pip install nekoconf[remote]
+
+# For development and testing
 pip install nekoconf[dev]
+
+# Install all optional features
+pip install nekoconf[all]
 ```
 
-## Quick Start
+### Optional Features
+
+| Feature                | Extra          | Dependencies                                        | Purpose                                                   |
+|------------------------|----------------|----------------------------------------------------|------------------------------------------------------------|
+| **Core**               | (none)         | pyyaml, filelock, jmespath, etc.                    | Basic configuration operations                             |
+| **Web Server/API**     | `server`       | fastapi, uvicorn, jinja2, etc.                     | Run a web server to manage configuration                  |
+| **Schema Validation**  | `schema`       | jsonschema, rfc3987                                | Validate configuration against JSON Schema                |
+| **Remote Config**      | `remote`       | requests, websocket-client                         | Connect to a remote NekoConf server                       |
+| **Development Tools**  | `dev`          | pytest, pytest-cov, etc.                           | For development and testing                               |
+| **All Features**       | `all`          | All of the above                                   | Complete installation with all features                   |
+
+## 🚀 Quick Start
 
 ```python
 from nekoconf import NekoConfigManager
@@ -60,15 +100,15 @@ def handle_db_change(path, old_value, new_value, **kwargs):
     # Reconnect to database or apply changes...
 ```
 
-## Core Features
+## 🔧 Core Features
 
-### Configuration Management
+### 🔄 Configuration Management
 
 Load, access, and modify configuration data using JMESPath expressions.
 
 ```python
 # Load configuration from file (happens automatically on initialization)
-config = NekoConfigManager("config.yaml")
+config = NekoConfigClient("config.yaml")
 
 # Access values with type conversion
 host = config.get("database.host")
@@ -87,7 +127,7 @@ config.update({
 config.save()
 ```
 
-### Environment Variable Overrides
+### 🌍 Environment Variable Overrides
 
 Override configuration with environment variables. By default, variables are mapped as:
 `database.host` → `NEKOCONF_DATABASE_HOST`
@@ -101,7 +141,7 @@ export NEKOCONF_FEATURES_ENABLED=true
 
 ```python
 # These values will reflect environment variables automatically
-config = NekoConfigManager("config.yaml")
+config = NekoConfigClient("config.yaml")
 print(config.get("database.host"))  # "production-db.example.com" 
 print(config.get_int("database.port"))  # 5433
 print(config.get_bool("features.enabled"))  # True
@@ -122,7 +162,7 @@ The above would map `database.host` to `MYAPP_DATABASE__HOST`.
 [!NOTE]
 See [Environment Variables](docs/environment-variables.md) for more advanced configuration options.
 
-### Event System
+### 📢 Event System
 
 React to configuration changes in real-time:
 
@@ -139,7 +179,7 @@ def handle_db_change(path, old_value, new_value, **kwargs):
 
 # React to specific event types
 @config.on_event([EventType.CREATE, EventType.UPDATE], "cache.*")
-def handle_cache_config(event_type, path, old_value, new_value, **kwargs):
+def handle_cache_config(path, new_value, **kwargs):
     if event_type == EventType.CREATE:
         print(f"New cache setting created: {path} = {new_value}")
     else:
@@ -153,9 +193,50 @@ config.set("cache.ttl", 600)  # Triggers handle_cache_config
 
 For more advanced event patterns, see [Event Handling](docs/event-system.md).
 
-### Schema Validation
+### 🌐 Remote Configuration
 
-Ensure configuration integrity using JSON Schema:
+Connect to a remote NekoConf server for centralized configuration (requires `nekoconf[remote]`):
+
+```python
+# Connect to a remote NekoConf server
+config = NekoConfigManager(
+    remote_url="https://config-server.example.com",
+    remote_api_key="secure-key",
+    remote_read_only=True,  # Only read from server, don't push changes back
+    in_memory=True  # No local file, purely in-memory
+)
+
+# Use exactly the same API as with local files
+db_host = config.get("database.host")
+
+# React to changes from the remote server
+@config.on_change("features.*")
+def handle_feature_change(path, new_value, **kwargs):
+    print(f"Feature flag changed: {path} = {new_value}")
+    # Apply feature change...
+```
+
+You can also combine remote configuration with local files:
+
+```python
+# Use remote configuration with local backup file
+config = NekoConfigManager(
+    config_path="local-backup.yaml",  # Local backup file
+    remote_url="https://config-server.example.com",
+    remote_api_key="secure-key",
+    remote_read_only=False  # Can push changes back to server
+)
+
+# Changes are first pushed to the remote server, then saved locally
+config.set("api.timeout", 30)
+config.save()
+```
+
+For more details and options, see [Remote Configuration](docs/remote-configuration.md).
+
+### ✅ Schema Validation
+
+Ensure configuration integrity using JSON Schema (requires `nekoconf[schema]`):
 
 ```python
 # schema.json
@@ -191,9 +272,9 @@ errors = config.validate()
 print(errors)  # Shows validation error
 ```
 
-## Web UI & REST API
+## 🖥️ Web UI & REST API
 
-NekoConf includes a web server built with FastAPI to manage configuration remotely:
+NekoConf includes a web server built with FastAPI to manage configuration remotely (requires `nekoconf[server]`):
 
 ```python
 from nekoconf import NekoConfigManager, NekoConfigServer
@@ -221,7 +302,7 @@ Secure your API with an API key in production environments.
 
 Learn more about the [Web Server and REST API](docs/web-server.md).
 
-## Command-Line Interface
+## 💻 Command-Line Interface
 
 NekoConf provides a command-line interface for managing configuration:
 
@@ -229,7 +310,7 @@ NekoConf provides a command-line interface for managing configuration:
 # View help
 nekoconf --help
 
-# Start web server
+# Start web server (requires nekoconf[server])
 nekoconf server --config config.yaml --port 8000 --api-key "secure-key"
 
 # Get configuration value
@@ -244,18 +325,36 @@ nekoconf set database.port 5432 --config config.yaml
 # Delete configuration value
 nekoconf delete old.setting --config config.yaml
 
-# Validate configuration
+# Validate configuration (requires nekoconf[schema])
 nekoconf validate --config config.yaml --schema schema.json
 
 # Import configuration from another file
 nekoconf import new-values.json --config config.yaml
+
+# Connect to a remote NekoConf server (requires nekoconf[remote])
+nekoconf connect http://config-server:8000 --api-key "secure-key" --watch
+```
+
+### Remote Configuration via CLI
+
+You can connect to a remote NekoConf server directly from the command line:
+
+```bash
+# Connect to a remote server and watch for config changes
+nekoconf connect http://config-server:8000 --watch --format json
+
+# Get a value from remote server
+nekoconf get api.timeout --remote-url http://config-server:8000 --remote-api-key "secure-key"
+
+# Update a value on the remote server
+nekoconf set cache.ttl 600 --remote-url http://config-server:8000 --remote-api-key "secure-key"
 ```
 
 See the [CLI Reference](docs/cli-reference.md) for all available commands and options.
 
-## Integration Examples
+## 🔌 Integration Examples
 
-### Flask Integration
+### 🌶️ Flask Integration
 
 ```python
 from flask import Flask
@@ -282,7 +381,7 @@ def index():
     return f"API Version: {config_manager.get('app.version', 'v1.0')}"
 ```
 
-### FastAPI Integration
+### ⚡ FastAPI Integration
 
 ```python
 from fastapi import FastAPI, Depends
@@ -306,7 +405,7 @@ async def update_rate_limits(path, new_value, **kwargs):
     print(f"Rate limit updated: {path} = {new_value}")
 ```
 
-### Django Integration
+### 🎸 Django Integration
 
 ```python
 # settings.py
@@ -335,7 +434,31 @@ DATABASES = {
 # For dynamic reconfiguration, create an app config to listen for changes
 ```
 
-## Documentation
+### 📱 Microservices Integration with Remote Config
+
+```python
+# In your microservice
+from nekoconf import NekoConfigClient
+
+# Connect to the central configuration server
+config = NekoConfigClient(
+    remote_url="http://config-service:8000",
+    remote_api_key="service-specific-key",
+    in_memory=True  # No local file needed
+)
+
+# Use configuration
+service_port = config.get_int("service.port", 8080)
+feature_flags = config.get("features", {})
+
+# React to configuration changes in real-time
+@config.on_change("features.*")
+def handle_feature_change(event_type, path, old_value, new_value, config_data, **kwargs):
+    print(f"Feature flag changed: {path}")
+    # Apply feature change dynamically
+```
+
+## 📚 Documentation
 
 NekoConf offers comprehensive documentation for all its core features and advanced usage. For a better experience, each major topic is documented in a dedicated markdown file under the `docs/` directory. See below for quick links and summaries:
 
@@ -348,10 +471,11 @@ NekoConf offers comprehensive documentation for all its core features and advanc
 | [Schema Validation](docs/schema-validation.md) | Using JSON Schema for config validation, error handling, and tips. |
 | [Security Considerations](docs/security.md) | API key usage, best practices, and deployment security. |
 | [Advanced Usage](docs/advanced-usage.md) | Deep dives: concurrency, integration, dynamic reload, and more. |
+| [Remote Configuration](docs/remote-configuration.md) | Connecting to remote NekoConf servers, synchronization, and deployment patterns. |
 
 For installation, quick start, and integration examples, see above sections. For detailed guides, visit the linked docs.
 
-## Contributing
+## 👩‍💻 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
@@ -361,6 +485,14 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## License
+
+## ❤️ Discord Community
+
+[![Discord](https://img.shields.io/discord/1365929019714834493)](https://discord.gg/jXAxVPSs7K)
+
+> [!NOTE]
+> Need support? Contact [k3scat@gmail.com](mailto:k3scat@gmail.com) or join our discord community at [Nya Foundation](https://discord.gg/jXAxVPSs7K)
+
+## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

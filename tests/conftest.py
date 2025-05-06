@@ -9,8 +9,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from nekoconf.core.config import NekoConfigManager
-from nekoconf.core.eval import NekoSchemaValidator
-from nekoconf.core.helper import NekoConfigClient
+from nekoconf.core.wrapper import NekoConfigWrapper
+from nekoconf.schema import NekoSchemaValidator
 from nekoconf.server.app import NekoConfigServer
 from tests.test_helpers import ConfigTestHelper
 
@@ -122,7 +122,10 @@ def sample_schema() -> Dict[str, Any]:
             "logging": {
                 "type": "object",
                 "properties": {
-                    "level": {"type": "string", "enum": ["DEBUG", "INFO", "WARNING", "ERROR"]}
+                    "level": {
+                        "type": "string",
+                        "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+                    }
                 },
             },
         },
@@ -276,15 +279,15 @@ def test_client_with_auth(web_server_with_auth) -> TestClient:
 
 
 @pytest.fixture
-def config_api(config_file) -> NekoConfigClient:
+def config_api(config_file) -> NekoConfigWrapper:
     """Create a NekoConfigClient instance for testing."""
-    return NekoConfigClient(config_file)
+    return NekoConfigWrapper(config_file)
 
 
 @pytest.fixture
-def config_api_with_schema(config_file, schema_file) -> NekoConfigClient:
+def config_api_with_schema(config_file, schema_file) -> NekoConfigWrapper:
     """Create a NekoConfigClient instance with schema for testing."""
-    return NekoConfigClient(config_file, schema_file)
+    return NekoConfigWrapper(config_file, schema_file)
 
 
 @pytest.fixture

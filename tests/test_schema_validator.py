@@ -13,7 +13,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from nekoconf.core.eval import NekoSchemaValidator
+from nekoconf.schema import NekoSchemaValidator
 
 
 class TestNekoSchemaValidator:
@@ -108,7 +108,11 @@ class TestNekoSchemaValidator:
         assert errors == [], f"Expected no validation errors, got: {errors}"
 
         # Test with invalid formats
-        invalid_data = {"email": "not-an-email", "date": "not-a-date", "uri": "123not-a-uri"}
+        invalid_data = {
+            "email": "not-an-email",
+            "date": "not-a-date",
+            "uri": "123not-a-uri",
+        }
         errors = validator.validate(invalid_data)
         assert len(errors) == 3, f"Expected 3 validation errors, got: {len(errors)}"
         assert any("email" in e for e in errors), "Should have error about email format"

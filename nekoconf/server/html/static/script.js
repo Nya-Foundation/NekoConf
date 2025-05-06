@@ -8,7 +8,10 @@ let ws;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
-const apiUrl = "{{ request.scope.root_path }}/api/config";
+const baseUrl = new URL(".", window.location);
+const apiUrl = `${baseUrl}api/config`;
+const wsUrl = `${baseUrl}ws`;
+
 // API service for interacting with the backend
 const apiService = {
   // Get all configuration
@@ -91,9 +94,6 @@ const apiService = {
 // Improved WebSocket service with better reconnection handling
 const wsService = {
   init() {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}{{ request.scope.root_path }}/ws`;
-
     if (ws?.readyState === WebSocket.OPEN) return;
 
     ws = new WebSocket(wsUrl);
@@ -268,7 +268,7 @@ function handleKeyboardShortcuts(e) {
     e: exportConfig,
     i: importConfig,
     r: reloadConfig,
-    v: validateConfig,
+    l: validateConfig,
   };
 
   const action = shortcuts[e.key.toLowerCase()];

@@ -12,7 +12,7 @@ from fastapi.security import APIKeyHeader
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import HTMLResponse, JSONResponse
 
-from nekoconf.core.utils import getLogger
+from nekoconf.utils.helper import getLogger
 
 
 class NekoAuthGuard:
@@ -97,11 +97,6 @@ class NekoAuthGuard:
         # Trim any whitespace that might be added by some browsers
         cookie_key = cookie_key.strip() if cookie_key else ""
 
-        # Log keys for debugging - remove in production
-        # print(
-        #     f"Cookie key: '{cookie_key}', Configured key: '{configured_key}', result: {cookie_key == configured_key}"
-        # )
-
         # Validate the key
         return cookie_key == configured_key
 
@@ -150,7 +145,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         # For API and other paths, return JSON error
         return JSONResponse(
-            status_code=403, content={"error": "Unauthorized: NekoConf - Invalid API key"}
+            status_code=403,
+            content={"error": "Unauthorized: NekoConf - Invalid API key"},
         )
 
     def _generate_login_page(self, request: Request):
@@ -158,7 +154,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # load the login HTML template using importlib.resources
         try:
             # Adjusted path for the 'web' subpackage
-            template_path = importlib.resources.files("nekoconf.server") / "static" / "login.html"
+            template_path = importlib.resources.files("nekoconf.server") / "html" / "login.html"
             with template_path.open("r") as f:
                 html_content = f.read()
         except (FileNotFoundError, TypeError, ImportError) as e:

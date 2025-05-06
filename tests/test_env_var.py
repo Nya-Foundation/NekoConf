@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from nekoconf import NekoConfigManager
-from nekoconf.core.utils import save_file
+from nekoconf.utils.helper import save_file
 
 # --- Test Fixtures ---
 
@@ -20,7 +20,11 @@ def temp_config_file(tmp_path):
             "enabled": True,
             "timeouts": {"read": 5, "write": 10},
         },
-        "database": {"host": "localhost", "port": 5432, "credentials": {"user": "default_user"}},
+        "database": {
+            "host": "localhost",
+            "port": 5432,
+            "credentials": {"user": "default_user"},
+        },
         "feature_flags": ["flag1", "flag2"],
         "debug_mode": False,
         "log_level": "INFO",
@@ -107,7 +111,10 @@ def test_type_parsing(temp_config_file):
     assert manager.get("service.enabled") is False
     assert manager.get("database.port") == 5433.5
     assert manager.get("feature.flags") == ["new_flag", "flag3"]
-    assert manager.get("database.credentials") == {"user": "env_user", "pass": "env_pass"}
+    assert manager.get("database.credentials") == {
+        "user": "env_user",
+        "pass": "env_pass",
+    }
 
 
 def test_exclusion(temp_config_file):
@@ -135,7 +142,8 @@ def test_exclusion_nested_parent(temp_config_file):
     os.environ["NEKOCONF_DATABASE_CREDENTIALS_USER"] = "env_user"  # Child of excluded parent
 
     manager = NekoConfigManager(
-        temp_config_file, env_exclude_paths=["database"]  # Exclude the whole database section
+        temp_config_file,
+        env_exclude_paths=["database"],  # Exclude the whole database section
     )
 
     assert manager.get("database.host") == "localhost"  # Excluded
@@ -149,7 +157,8 @@ def test_inclusion(temp_config_file):
     os.environ["NEKOCONF_DEBUG_MODE"] = "true"  # Included
 
     manager = NekoConfigManager(
-        temp_config_file, env_include_paths=["service.port", "debug.mode"]  # Only allow these
+        temp_config_file,
+        env_include_paths=["service.port", "debug.mode"],  # Only allow these
     )
 
     assert manager.get("service.port") == 9090  # Included -> Overridden
@@ -164,7 +173,8 @@ def test_inclusion_nested_parent(temp_config_file):
     os.environ["NEKOCONF_SERVICE_PORT"] = "9090"  # Not included
 
     manager = NekoConfigManager(
-        temp_config_file, env_include_paths=["database"]  # Include the whole database section
+        temp_config_file,
+        env_include_paths=["database"],  # Include the whole database section
     )
 
     assert manager.get("database.host") == "remote-db"  # Included (child) -> Overridden

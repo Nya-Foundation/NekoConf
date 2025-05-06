@@ -6,25 +6,17 @@ and receive updates when configurations change.
 
 import logging
 from pathlib import Path
-from typing import (
-    Any,
-    Dict,
-    List,
-    Optional,
-    TypeVar,
-    Union,
-    overload,
-)
+from typing import Any, Dict, List, Optional, TypeVar, Union, overload
 
 from nekoconf.core.config import NekoConfigManager
 
-from .utils import getLogger
+from ..utils.helper import getLogger
 
 # Type variable for type hints
 T = TypeVar("T")
 
 
-class NekoConfigClient:
+class NekoConfigWrapper:
     """A helper class for accessing and managing NekoConf configurations.
 
     This class provides methods for external applications to access and event handling
@@ -36,6 +28,12 @@ class NekoConfigClient:
         config_path: Union[str, Path],
         schema_path: Optional[Union[str, Path]] = None,
         logger: Optional[logging.Logger] = None,
+        *,
+        # Document the forwarded parameters
+        in_memory: bool = False,
+        remote_url: Optional[str] = None,
+        remote_api_key: Optional[str] = None,
+        # Other important params you want to expose
         **kwargs: Any,
     ):
         """Initialize the configuration API.
@@ -46,7 +44,15 @@ class NekoConfigClient:
         """
         self.logger = logger or getLogger(__name__)
 
-        self.config = NekoConfigManager(config_path, schema_path, self.logger, **kwargs)
+        self.config = NekoConfigManager(
+            config_path,
+            schema_path,
+            self.logger,
+            in_memory=in_memory,
+            remote_url=remote_url,
+            remote_api_key=remote_api_key,
+            **kwargs,
+        )
         self.config.load()
 
         self.logger.debug(f"Initialized NekoConfigClient with {config_path}")
@@ -224,108 +230,29 @@ class NekoConfigClient:
         """
         self.config.set(key, value)
 
-    def delete(self, key: str) -> bool:
-        """Delete a configuration value.
+    def __getattr__(self, name):
+        """Delegate method calls to the underlying NekoConfigManager.
+
+        This allows the NekoConfigClient to transparently access all methods
+        of the underlying NekoConfigManager without having to explicitly
+        define pass-through methods.
 
         Args:
-            key: The configuration key (JMESPath expressions for nested values)
+            name: The name of the attribute/method to access
 
         Returns:
-            True if the key was deleted, False if it didn't exist
+            The attribute or method from the underlying config manager
+
+        Raises:
+            AttributeError: If the attribute doesn't exist on the config manager
         """
-        result = self.config.delete(key)
-        return result
+        if hasattr(self.config, name):
+            return getattr(self.config, name)
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
-    def update(self, data: Dict[str, Any], deep_merge: bool = True) -> None:
-        """Update multiple configuration values.
+    def __enter__(self):
+        return self
 
-        Args:
-            data: Dictionary of configuration values to update
-            deep_merge: Whether to perform deep merge for nested dictionaries
-        """
-        self.config.update(data, deep_merge)
-
-    def save(self) -> bool:
-        """Save the current configuration to file.
-
-        Returns:
-            True if save was successful, False otherwise
-        """
-        return self.config.save()
-
-    def get_all(self) -> Dict[str, Any]:
-        """Get the entire configuration.
-
-        Returns:
-            The complete configuration data
-        """
-        return self.config.get()
-
-    def reload(self) -> Dict[str, Any]:
-        """Reload configuration from file.
-
-        Returns:
-            The reloaded configuration data
-        """
-        return self.config.load()
-
-    def validate(self) -> List[str]:
-        """Validate configuration against schema.
-
-        Returns:
-            List of validation error messages (empty if valid)
-        """
-        return self.config.validate()
-
-    def on_change(self, path_pattern: str, priority: int = 100):
-        """Register a handler for changes to a specific configuration path.
-
-        This method provides a decorator that can be used to register a function
-        as a handler for configuration changes at a specific path.
-
-        Args:
-            path_pattern: Path pattern to filter events (e.g., "database.connection")
-            priority: Handler priority (lower number = higher priority)
-
-        Returns:
-            Decorator function
-
-        Example:
-            @config.on_change("database.connection")
-            def handle_db_connection_change(old_value, new_value, **kwargs):
-                # Reconnect to database with new settings
-                pass
-        """
-        return self.config.on_change(path_pattern, priority)
-
-    def on_event(self, event_type, path_pattern=None, priority=100):
-        """Register a handler for specific event types.
-
-        This method provides a decorator that can be used to register a function
-        as a handler for specific types of configuration events.
-
-        Args:
-            event_type: Type of event to handle (or list of types)
-            path_pattern: Optional path pattern to filter events
-            priority: Handler priority (lower number = higher priority)
-
-        Returns:
-            Decorator function
-
-        Example:
-            @config.on_event(EventType.DELETE, "cache.*")
-            def handle_cache_delete(path, old_value, **kwargs):
-                # Clear cache entries when deleted
-                pass
-
-            @config.on_event([EventType.CREATE, EventType.UPDATE], "logging.*")
-            def handle_logging_change(event_type, path, new_value, **kwargs):
-                # Update logging configuration
-                if event_type == EventType.CREATE:
-                    # Initialize new logger
-                    pass
-                else:
-                    # Update existing logger
-                    pass
-        """
-        return self.config.on_event(event_type, path_pattern, priority)
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.cleanup()
+        return False

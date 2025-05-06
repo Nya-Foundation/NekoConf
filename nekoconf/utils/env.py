@@ -7,10 +7,9 @@ environment variables using various strategies and patterns.
 import copy
 import logging
 import os
-import re
 from typing import Any, Dict, List, MutableMapping, Optional, Set, Tuple
 
-from .utils import get_nested_value, getLogger, parse_value
+from .helper import get_nested_value, getLogger, parse_value
 
 
 class EnvOverrideHandler:
@@ -127,7 +126,11 @@ class EnvOverrideHandler:
                     if get_nested_value(effective_data, config_key, default=sentinel) is sentinel:
                         # Key doesn't exist yet, so add it
                         self._try_parse_and_set_value(
-                            effective_data, config_key, env_var_name, env_var_value, stats
+                            effective_data,
+                            config_key,
+                            env_var_name,
+                            env_var_value,
+                            stats,
                         )
                         processed_keys.add(config_key)
 
