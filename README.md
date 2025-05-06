@@ -32,11 +32,11 @@ NekoConf is a dynamic and flexible configuration management system for Python ap
 | **Concurrency Safe**         | Uses file locking to prevent race conditions during file access.            |
 | **Remote Configuration**     | Connect to a remote NekoConf server for centralized configuration.          |
 
-[!TIP]
-NekoConf is ideal for applications with complex configuration needs, microservice architectures, or any scenario where you need to update configuration without service restarts.
+> [!TIP]
+> NekoConf is ideal for applications with complex configuration needs, microservice architectures, or any scenario where you need to update configuration without service restarts.
 
-[!NOTE]
-This project is currently in beta. We welcome feedback and contributions!
+> [!NOTE]
+> This project is currently in beta. We welcome feedback and contributions!
 
 ## 📦 Installation
 
@@ -159,8 +159,8 @@ config = NekoConfigManager(
 
 The above would map `database.host` to `MYAPP_DATABASE__HOST`.
 
-[!NOTE]
-See [Environment Variables](docs/environment-variables.md) for more advanced configuration options.
+> [!NOTE]
+> See [Environment Variables](docs/environment-variables.md) for more advanced configuration options.
 
 ### 📢 Event System
 
@@ -297,8 +297,8 @@ Access at http://localhost:8000 for the web UI or use REST endpoints:
 
 The server also supports WebSocket connections for real-time configuration updates.
 
-[!WARNING]
-Secure your API with an API key in production environments.
+> [!WARNING]
+> Secure your API with an API key in production environments.
 
 Learn more about the [Web Server and REST API](docs/web-server.md).
 
