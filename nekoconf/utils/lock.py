@@ -43,7 +43,10 @@ class LockManager:
     """Manages lock files for synchronizing access to files across processes and threads."""
 
     def __init__(
-        self, resource_path: Path, timeout: float = DEFAULT_TIMEOUT, lock_suffix: str = ".lock"
+        self,
+        resource_path: Path,
+        timeout: float = DEFAULT_TIMEOUT,
+        lock_suffix: str = ".lock",
     ):
         self.resource_path = Path(resource_path)
         self.lock_path = f"{self.resource_path}{lock_suffix}"
@@ -138,8 +141,6 @@ class LockManager:
 
 
 # --- Module level functions for global lock management ---
-
-
 def _cleanup_locks():
     for lock_path in _list_active_locks():
         try:

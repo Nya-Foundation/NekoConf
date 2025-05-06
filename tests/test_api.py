@@ -2,7 +2,7 @@
 
 import pytest
 
-from nekoconf.core.helper import NekoConfigClient
+from nekoconf.core.wrapper import NekoConfigWrapper
 
 
 class TestNekoConfigClient:
@@ -11,17 +11,17 @@ class TestNekoConfigClient:
     def test_initialization(self, config_file, schema_file):
         """Test initializing NekoConfigClient with various arguments."""
         # Basic initialization
-        api = NekoConfigClient(config_file)
+        api = NekoConfigWrapper(config_file)
         assert api.config.config_path == config_file
         assert api.config.schema_path is None
 
         # With schema
-        api = NekoConfigClient(config_file, schema_file)
+        api = NekoConfigWrapper(config_file, schema_file)
         assert api.config.config_path == config_file
         assert api.config.schema_path == schema_file
 
         # With string paths
-        api = NekoConfigClient(str(config_file), str(schema_file))
+        api = NekoConfigWrapper(str(config_file), str(schema_file))
         assert api.config.config_path == config_file
         assert api.config.schema_path == schema_file
 
@@ -71,7 +71,7 @@ class TestNekoConfigClient:
     def test_complex_getters(self, config_api, complex_config_file):
         """Test getting complex configuration values."""
         # Create API with complex config
-        api = NekoConfigClient(complex_config_file)
+        api = NekoConfigWrapper(complex_config_file)
 
         # Float values
         value = api.get_float("server.timeout")

@@ -10,14 +10,32 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
-import yaml
-
+from nekoconf import HAS_REMOTE_DEPS, HAS_SCHEMA_DEPS, HAS_SERVER_DEPS
 from nekoconf._version import __version__
 from nekoconf.core.config import NekoConfigManager
-from nekoconf.core.utils import getLogger, load_file, parse_value, save_file
-from nekoconf.server.app import NekoConfigServer
+from nekoconf.utils.helper import getLogger, load_file, parse_value, save_file
+
+if HAS_SERVER_DEPS:
+    from nekoconf.server import NekoConfigServer
+
+try:
+    import yaml
+
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
+
+
+from .parser import (
+    add_command,
+    add_format_param,
+    add_in_memory_param,
+    add_read_only_param,
+    add_remote_params,
+    add_schema_param,
+)
 
 
 def _create_parser() -> argparse.ArgumentParser:
@@ -32,14 +50,7 @@ def _create_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # Server command
-    server_parser = subparsers.add_parser("server", help="Start the configuration web server")
-    server_parser.add_argument(
-        "--config",
-        "-c",
-        type=str,
-        help="Path to the configuration file (YAML or JSON)",
-        default="config.yaml",  # Default value for testing purposes
-    )
+    server_parser = add_command(subparsers, "server", "Start the configuration web server")
     server_parser.add_argument(
         "--host",
         type=str,
@@ -52,12 +63,7 @@ def _create_parser() -> argparse.ArgumentParser:
         default=8000,
         help="Port to run the server on (default: 8000)",
     )
-
-    server_parser.add_argument(
-        "--schema",
-        type=str,
-        help="Path to a schema file for validation (optional)",
-    )
+    add_schema_param(server_parser)
     server_parser.add_argument(
         "--reload", action="store_true", help="Enable auto-reload for development"
     )
@@ -71,115 +77,73 @@ def _create_parser() -> argparse.ArgumentParser:
     )
 
     # Get command
-    get_parser = subparsers.add_parser("get", help="Get a configuration value")
-    get_parser.add_argument(
-        "--config",
-        "-c",
-        type=str,
-        help="Path to the configuration file (YAML or JSON)",
-        default="config.yaml",  # Default value for testing purposes
-    )
+    get_parser = add_command(subparsers, "get", "Get a configuration value")
     get_parser.add_argument(
         "key",
         type=str,
         nargs="?",
         help="Configuration key to retrieve (if omitted, returns all)",
     )
-    get_parser.add_argument(
-        "--format",
-        "-f",
-        type=str,
-        choices=["json", "yaml", "raw"],
-        default="raw",
-        help="Output format (default: raw)",
-    )
+    add_format_param(get_parser)
+    add_remote_params(get_parser)
+    add_in_memory_param(get_parser)
 
     # Set command
-    set_parser = subparsers.add_parser("set", help="Set a configuration value")
-    set_parser.add_argument(
-        "--config",
-        "-c",
-        type=str,
-        help="Path to the configuration file (YAML or JSON)",
-        default="config.yaml",  # Default value for testing purposes
-    )
+    set_parser = add_command(subparsers, "set", "Set a configuration value")
     set_parser.add_argument("key", type=str, help="Configuration key to set")
     set_parser.add_argument("value", type=str, help="Value to set for the key")
-    set_parser.add_argument(
-        "--schema",
-        type=str,
-        help="Path to a schema file for validation (optional)",
-    )
+    add_schema_param(set_parser)
+    add_remote_params(set_parser)
+    add_read_only_param(set_parser)
+    add_in_memory_param(set_parser)
 
     # Delete command
-    delete_parser = subparsers.add_parser("delete", help="Delete a configuration value")
-    delete_parser.add_argument(
-        "--config",
-        "-c",
-        type=str,
-        help="Path to the configuration file (YAML or JSON)",
-        default="config.yaml",  # Default value for testing purposes
-    )
+    delete_parser = add_command(subparsers, "delete", "Delete a configuration value")
     delete_parser.add_argument("key", type=str, help="Configuration key to delete")
-    delete_parser.add_argument(
-        "--schema",
-        type=str,
-        help="Path to a schema file for validation (optional)",
-    )
+    add_schema_param(delete_parser)
+    add_remote_params(delete_parser)
+    add_read_only_param(delete_parser)
+    add_in_memory_param(delete_parser)
 
     # Import command
-    import_parser = subparsers.add_parser("import", help="Import configuration from a file")
+    import_parser = add_command(
+        subparsers, "import", "Import configuration from a file", add_config=False
+    )
+
+    # Override default config behavior for import - make it required
     import_parser.add_argument(
         "--config",
         "-c",
         type=str,
         required=True,
-        help="Path to the target configuration file (YAML or JSON)",
+        help="Path to the target configuration file (YAML, JSON, or TOML)",
     )
     import_parser.add_argument(
         "import_file",
         type=str,
-        help="File to import (YAML or JSON)",
-    )
-    import_parser.add_argument(
-        "--deep-merge",
-        action="store_true",
-        default=True,
-        help="Perform deep merge of nested objects (default: True)",
-    )
-    import_parser.add_argument(
-        "--schema",
-        type=str,
-        help="Path to a schema file for validation (optional)",
+        help="File to import (YAML, JSON, or TOML)",
     )
 
+    add_schema_param(import_parser)
+    add_remote_params(import_parser)
+    add_read_only_param(import_parser)
+    add_in_memory_param(import_parser)
+
     # Validate command
-    validate_parser = subparsers.add_parser(
-        "validate", help="Validate configuration against a schema"
-    )
-    validate_parser.add_argument(
-        "--config",
-        "-c",
-        type=str,
-        help="Path to the configuration file (YAML or JSON)",
-        default="config.yaml",  # Default value for testing purposes
-    )
+    validate_parser = add_command(subparsers, "validate", "Validate configuration against a schema")
     validate_parser.add_argument(
         "--schema",
         "-s",
         type=str,
         required=True,
-        help="Path to the schema file (YAML or JSON)",
+        help="Path to the schema file (YAML, JSON, or TOML)",
     )
+    add_remote_params(validate_parser)
+    add_in_memory_param(validate_parser)
 
-    # Create empty config command
-    init_parser = subparsers.add_parser("init", help="Create a new empty configuration file")
-    init_parser.add_argument(
-        "--config",
-        "-c",
-        type=str,
-        help="Path to the new configuration file (YAML or JSON)",
-        default="config.yaml",  # Default value for testing purposes
+    # Init command
+    init_parser = add_command(
+        subparsers, "init", "Create a new empty configuration file", add_config=False
     )
     init_parser.add_argument(
         "--template",
@@ -187,6 +151,37 @@ def _create_parser() -> argparse.ArgumentParser:
         type=str,
         help="Template file to use (optional)",
     )
+
+    # Connect command
+    connect_parser = subparsers.add_parser("connect", help="Connect to a remote NekoConf server")
+    connect_parser.add_argument(
+        "remote_url",
+        type=str,
+        help="URL of the remote NekoConf server (e.g., 'http://config-server:8000')",
+    )
+    connect_parser.add_argument(
+        "--api-key",
+        type=str,
+        help="API key for authentication with the remote server",
+    )
+    connect_parser.add_argument(
+        "--config",
+        "-c",
+        type=str,
+        help="Path to save configuration locally (if not specified, uses in-memory mode)",
+    )
+    connect_parser.add_argument(
+        "--read-only",
+        action="store_true",
+        default=True,
+        help="Use read-only mode (default: True)",
+    )
+    connect_parser.add_argument(
+        "--watch",
+        action="store_true",
+        help="Watch for configuration changes and print updates",
+    )
+    add_format_param(connect_parser)
 
     return parser
 
@@ -196,12 +191,20 @@ def handle_server_command(args: argparse.Namespace, logger: Optional[logging.Log
 
     Args:
         args: Command-line arguments
+        logger: Optional logger instance
 
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
-
     logger = logger or getLogger("nekoconf.cli.server", level="INFO")
+
+    # Check if server dependencies are available
+    if not HAS_SERVER_DEPS:
+        logger.error(
+            "Server features require additional dependencies. "
+            "Install them with: pip install nekoconf[server]"
+        )
+        return 1
 
     try:
         logger.info(f"Starting NekoConf server version {__version__}")
@@ -233,39 +236,126 @@ def handle_server_command(args: argparse.Namespace, logger: Optional[logging.Log
         return 1
 
 
+def _create_config_manager_from_args(
+    args: argparse.Namespace, logger: logging.Logger
+) -> NekoConfigManager:
+    """Create a config manager from command line arguments.
+
+    Args:
+        args: Command line arguments
+        logger: Logger instance
+
+    Returns:
+        Configured NekoConfigManager instance
+    """
+    schema_path = Path(args.schema) if hasattr(args, "schema") and args.schema else None
+
+    # Check for remote configuration parameters
+    remote_url = getattr(args, "remote_url", None)
+    remote_api_key = getattr(args, "remote_api_key", None)
+    remote_read_only = getattr(args, "remote_read_only", True)
+    in_memory = getattr(args, "in_memory", False)
+
+    # Determine config path (might be None if in_memory mode)
+    config_path = None
+    if hasattr(args, "config") and args.config is not None:
+        config_path = Path(args.config)
+
+    # Create the config manager with appropriate settings
+    return NekoConfigManager(
+        config_path=config_path,
+        schema_path=schema_path,
+        logger=logger,
+        remote_url=remote_url,
+        remote_api_key=remote_api_key,
+        remote_read_only=remote_read_only,
+        in_memory=in_memory,
+    )
+
+
+def _format_output(value: Any, format_type: str) -> str:
+    """Format the output according to the specified format.
+
+    Args:
+        value: The value to format
+        format_type: Format type (json, yaml, raw)
+
+    Returns:
+        Formatted string
+    """
+    if format_type == "json":
+        return json.dumps(value, indent=2)
+    elif format_type == "yaml":
+        if not HAS_YAML:
+            raise ImportError("YAML formatting requires pyyaml package.")
+        return yaml.dump(value, default_flow_style=False, sort_keys=False)
+    else:  # raw format
+        if isinstance(value, (dict, list)):
+            return json.dumps(value, indent=2)
+        return str(value)
+
+
+def _print_formatted(value: Any, format_type: str) -> None:
+    """Print the value with the specified format.
+
+    Args:
+        value: The value to print
+        format_type: Format type (json, yaml, raw)
+    """
+    print(_format_output(value, format_type))
+
+
+def _validate_and_save(
+    config_manager: NekoConfigManager,
+    schema_path: Optional[str] = None,
+    logger: Optional[logging.Logger] = None,
+) -> bool:
+    """Validate the configuration and save it if valid.
+
+    Args:
+        config_manager: The config manager instance
+        schema_path: Optional schema path for validation
+        logger: Optional logger instance
+
+    Returns:
+        True if validation passed and save was successful
+    """
+    logger = logger or getLogger(__name__)
+
+    # Validate if schema is provided
+    if schema_path:
+        errors = config_manager.validate()
+        if errors:
+            logger.error("Validation failed:")
+            for error in errors:
+                logger.error(f"  - {error}")
+            return False
+
+    # Save configuration
+    return config_manager.save()
+
+
 def handle_get_command(args: argparse.Namespace, logger: Optional[logging.Logger] = None) -> int:
     """Handle the 'get' command.
 
     Args:
         args: Command-line arguments
+        logger: Optional logger instance
 
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
-
     logger = logger or getLogger("nekoconf.cli.get", level="INFO")
 
     try:
-        config_path = Path(args.config)
-
-        # Load configuration
-        config_manager = NekoConfigManager(config_path)
-        config_manager.load()
+        # Create config manager with potential remote connection
+        config_manager = _create_config_manager_from_args(args, logger)
 
         # Get the requested value
         value = config_manager.get(args.key if args.key else None)
 
         # Format and print the value
-        if args.format == "json":
-            print(json.dumps(value, indent=2))
-        elif args.format == "yaml":
-            print(yaml.dump(value, default_flow_style=False, sort_keys=False))
-        else:  # raw format
-            if args.key is None or isinstance(value, (dict, list)):
-                print(json.dumps(value, indent=2))
-            else:
-                print(value)
-
+        _print_formatted(value, args.format)
         return 0
     except Exception as e:
         logger.error(f"Error getting configuration: {e}")
@@ -277,19 +367,15 @@ def handle_set_command(args: argparse.Namespace, logger: Optional[logging.Logger
 
     Args:
         args: Command-line arguments
+        logger: Optional logger instance
 
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
-
     logger = logger or getLogger("nekoconf.cli.set", level="INFO")
     try:
-        config_path = Path(args.config)
-        schema_path = Path(args.schema) if args.schema else None
-
-        # Create config manager
-        config_manager = NekoConfigManager(config_path, schema_path)
-        config_manager.load()
+        # Create config manager with potential remote connection
+        config_manager = _create_config_manager_from_args(args, logger)
 
         # Parse the value
         parsed_value = parse_value(args.value)
@@ -297,21 +383,11 @@ def handle_set_command(args: argparse.Namespace, logger: Optional[logging.Logger
         # Set the value
         config_manager.set(args.key, parsed_value)
 
-        # Validate if a schema is provided
-        if schema_path:
-            errors = config_manager.validate()
-            if errors:
-                logger.error("Validation failed:")
-                for error in errors:
-                    logger.error(f"  - {error}")
-                return 1
-
-        # Save the configuration
-        if config_manager.save():
+        # Validate and save
+        if _validate_and_save(config_manager, getattr(args, "schema", None), logger):
             logger.info(f"Set {args.key} = {parsed_value}")
             return 0
-        else:
-            return 1
+        return 1
     except Exception as e:
         logger.error(f"Error setting configuration: {e}")
         return 1
@@ -322,36 +398,23 @@ def handle_delete_command(args: argparse.Namespace, logger: Optional[logging.Log
 
     Args:
         args: Command-line arguments
+        logger: Optional logger instance
 
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
     logger = logger or getLogger("nekoconf.cli.delete", level="INFO")
     try:
-        config_path = Path(args.config)
-        schema_path = Path(args.schema) if args.schema else None
-
-        # Create config manager
-        config_manager = NekoConfigManager(config_path, schema_path)
-        config_manager.load()
+        # Create config manager with potential remote connection
+        config_manager = _create_config_manager_from_args(args, logger)
 
         # Delete the key
         if config_manager.delete(args.key):
-            # Validate if a schema is provided
-            if schema_path:
-                errors = config_manager.validate()
-                if errors:
-                    logger.error("Validation failed:")
-                    for error in errors:
-                        logger.error(f"  - {error}")
-                    return 1
-
-            # Save the configuration
-            if config_manager.save():
+            # Validate and save
+            if _validate_and_save(config_manager, getattr(args, "schema", None), logger):
                 logger.info(f"Deleted {args.key}")
                 return 0
-            else:
-                return 1
+            return 1
         else:
             logger.warning(f"Key '{args.key}' not found")
             return 0
@@ -365,23 +428,21 @@ def handle_import_command(args: argparse.Namespace, logger: Optional[logging.Log
 
     Args:
         args: Command-line arguments
+        logger: Optional logger instance
 
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
     logger = logger or getLogger("nekoconf.cli.import", level="INFO")
     try:
-        config_path = Path(args.config)
         import_path = Path(args.import_file)
-        schema_path = Path(args.schema) if args.schema else None
 
         if not import_path.exists():
             logger.error(f"Import file not found: {import_path}")
             return 1
 
-        # Create config manager
-        config_manager = NekoConfigManager(config_path, schema_path)
-        config_manager.load()
+        # Create config manager with potential remote connection
+        config_manager = _create_config_manager_from_args(args, logger)
 
         # Load import data
         try:
@@ -391,23 +452,13 @@ def handle_import_command(args: argparse.Namespace, logger: Optional[logging.Log
             return 1
 
         # Update configuration
-        config_manager.update(import_data, args.deep_merge)
+        config_manager.update(import_data)
 
-        # Validate if a schema is provided
-        if schema_path:
-            errors = config_manager.validate()
-            if errors:
-                logger.error("Validation failed:")
-                for error in errors:
-                    logger.error(f"  - {error}")
-                return 1
-
-        # Save the configuration
-        if config_manager.save():
-            logger.info(f"Imported configuration from {import_path} to {config_path}")
+        # Validate and save
+        if _validate_and_save(config_manager, getattr(args, "schema", None), logger):
+            logger.info(f"Imported configuration from {import_path}")
             return 0
-        else:
-            return 1
+        return 1
     except Exception as e:
         logger.error(f"Error importing configuration: {e}")
         return 1
@@ -420,26 +471,23 @@ def handle_validate_command(
 
     Args:
         args: Command-line arguments
+        logger: Optional logger instance
 
     Returns:
         Exit code (0 for success, non-zero for errors)
     """
     logger = logger or getLogger("nekoconf.cli.validate", level="INFO")
     try:
-        config_path = Path(args.config)
-        schema_path = Path(args.schema)
 
-        if not config_path.exists():
-            logger.error(f"Configuration file not found: {config_path}")
+        if not HAS_SCHEMA_DEPS:
+            logger.error(
+                "Schema validation requires additional dependencies. "
+                "Install them with: pip install nekoconf[schema]"
+            )
             return 1
 
-        if not schema_path.exists():
-            logger.error(f"Schema file not found: {schema_path}")
-            return 1
-
-        # Create config manager
-        config_manager = NekoConfigManager(config_path, schema_path)
-        config_manager.load()
+        # Create config manager with potential remote connection
+        config_manager = _create_config_manager_from_args(args, logger)
 
         # Validate
         errors = config_manager.validate()
@@ -451,6 +499,10 @@ def handle_validate_command(
         else:
             logger.info("Validation successful")
             return 0
+    except ImportError as e:
+        logger.error(f"{e}")
+        logger.error("Install dependencies with: pip install nekoconf[schema]")
+        return 1
     except Exception as e:
         logger.error(f"Error validating configuration: {e}")
         return 1
@@ -461,6 +513,7 @@ def handle_init_command(args: argparse.Namespace, logger: Optional[logging.Logge
 
     Args:
         args: Command-line arguments
+        logger: Optional logger instance
 
     Returns:
         Exit code (0 for success, non-zero for errors)
@@ -497,6 +550,106 @@ def handle_init_command(args: argparse.Namespace, logger: Optional[logging.Logge
         return 0
     except Exception as e:
         logger.error(f"Error creating empty config: {e}")
+        return 1
+
+
+def handle_connect_command(
+    args: argparse.Namespace, logger: Optional[logging.Logger] = None
+) -> int:
+    """Handle the 'connect' command.
+
+    Args:
+        args: Command-line arguments
+        logger: Optional logger instance
+
+    Returns:
+        Exit code (0 for success, non-zero for errors)
+    """
+    logger = logger or getLogger("nekoconf.cli.connect", level="INFO")
+
+    try:
+        # Check if remote dependencies are available
+        try:
+
+            if not HAS_REMOTE_DEPS:
+                logger.error(
+                    "Remote connection requires additional dependencies. "
+                    "Install them with: pip install nekoconf[remote]"
+                )
+                return 1
+        except ImportError:
+            logger.error(
+                "Remote connection requires additional dependencies. "
+                "Install them with: pip install nekoconf[remote]"
+            )
+            return 1
+
+        # Determine if we're using a local file or in-memory mode
+        config_path = Path(args.config) if args.config else None
+        in_memory = not args.config
+
+        logger.info(f"Connecting to remote NekoConf server at {args.remote_url}")
+
+        # Create the config manager with remote connection
+        config_manager = NekoConfigManager(
+            config_path=config_path,
+            remote_url=args.remote_url,
+            remote_api_key=args.api_key,
+            remote_read_only=args.read_only,
+            in_memory=in_memory,
+            logger=logger,
+        )
+
+        # If we're not watching, just print the current config and exit
+        if not args.watch:
+            config_data = config_manager.get()
+            _print_formatted(config_data, args.format)
+            return 0
+
+        # If watching, set up a handler to print updates
+        import time
+
+        logger.info("Watching for configuration changes (Ctrl+C to stop)...")
+
+        # Initial configuration display
+        config_data = config_manager.get()
+        _print_formatted(config_data, args.format)
+
+        # Set up change handler
+        @config_manager.on_change("*")
+        def on_config_change(path=None, old_value=None, new_value=None, event_type=None, **kwargs):
+            print(f"\n--- Configuration changed at {time.strftime('%Y-%m-%d %H:%M:%S')} ---")
+            if path:
+                print(f"Path: {path}")
+
+                # Show what changed
+                if old_value != new_value:
+                    print("Old value:")
+                    _print_formatted(old_value, args.format)
+
+                    print("New value:")
+                    _print_formatted(new_value, args.format)
+            else:
+                # Full config changed
+                config_data = kwargs.get("config_data", {})
+                print("New configuration:")
+                _print_formatted(config_data, args.format)
+
+        # Keep running until Ctrl+C
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            logger.info("Disconnecting from remote server")
+            config_manager.cleanup()
+
+        return 0
+
+    except Exception as e:
+        logger.error(f"Error connecting to remote server: {e}")
+        import traceback
+
+        logger.debug(traceback.format_exc())
         return 1
 
 
@@ -558,6 +711,7 @@ def main(args: Optional[List[str]] = None) -> int:
             "import": handle_import_command,
             "validate": handle_validate_command,
             "init": handle_init_command,
+            "connect": handle_connect_command,
         }
 
         if parsed_args.command in handlers:
