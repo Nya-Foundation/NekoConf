@@ -79,7 +79,7 @@ pip install nekoconf[all]
 from nekoconf import NekoConfigManager
 
 # Initialize with configuration file path (creates file if it doesn't exist)
-config = NekoConfigManager("config.yaml")
+config = NekoConfigManager("config.yaml", event_emission_enabled=True)
 
 # Get configuration values (supports nested keys with dot notation)
 db_host = config.get("database.host", default="localhost")
@@ -153,11 +153,11 @@ You can customize the environment variable prefix and delimiter:
 config = NekoConfigManager(
     "config.yaml",
     env_prefix="MYAPP",
-    env_nested_delimiter="__"
+    env_nested_delimiter="_"
 )
 ```
 
-The above would map `database.host` to `MYAPP_DATABASE__HOST`.
+The above would map `database.host` to `MYAPP_DATABASE_HOST`.
 
 > [!NOTE]
 > See [Environment Variables](docs/environment-variables.md) for more advanced configuration options.
@@ -169,7 +169,7 @@ React to configuration changes in real-time:
 ```python
 from nekoconf import NekoConfigManager, EventType
 
-config = NekoConfigManager("config.yaml")
+config = NekoConfigManager("config.yaml", event_emission_enabled=True)
 
 # React to any change to database configuration
 @config.on_change("database.*")
@@ -203,7 +203,8 @@ config = NekoConfigManager(
     remote_url="https://config-server.example.com",
     remote_api_key="secure-key",
     remote_read_only=True,  # Only read from server, don't push changes back
-    in_memory=True  # No local file, purely in-memory
+    in_memory=True,  # No local file, purely in-memory
+    event_emission_enabled=True # Enable event observer 
 )
 
 # Use exactly the same API as with local files
@@ -361,7 +362,7 @@ from flask import Flask
 from nekoconf import NekoConfigManager
 
 app = Flask(__name__)
-config_manager = NekoConfigManager("flask_app_config.yaml")
+config_manager = NekoConfigManager("flask_app_config.yaml", event_emission_enabled=True)
 
 # Use configuration values to configure Flask
 app.config["DEBUG"] = config_manager.get_bool("app.debug", default=False)
@@ -387,7 +388,7 @@ def index():
 from fastapi import FastAPI, Depends
 from nekoconf import NekoConfigManager
 
-config_manager = NekoConfigManager("fastapi_config.yaml")
+config_manager = NekoConfigManager("fastapi_config.yaml", event_emission_enabled=True)
 app = FastAPI(title=config_manager.get("api.title", "My API"))
 
 # Dependency to access configuration
@@ -444,7 +445,8 @@ from nekoconf import NekoConfigClient
 config = NekoConfigClient(
     remote_url="http://config-service:8000",
     remote_api_key="service-specific-key",
-    in_memory=True  # No local file needed
+    in_memory=True,  # No local file needed
+    event_emission_enabled=True
 )
 
 # Use configuration
@@ -453,7 +455,7 @@ feature_flags = config.get("features", {})
 
 # React to configuration changes in real-time
 @config.on_change("features.*")
-def handle_feature_change(event_type, path, old_value, new_value, config_data, **kwargs):
+def handle_feature_change(path, **kwargs):
     print(f"Feature flag changed: {path}")
     # Apply feature change dynamically
 ```
