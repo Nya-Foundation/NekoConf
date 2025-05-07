@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v1.0.1 (2025-05-07)
+
+### Bug Fixes
+
+- Fix missing html folder. update README.md, refine parameters for wrapper
+  ([`481c760`](https://github.com/Nya-Foundation/NekoConf/commit/481c760850c08b9bd3665acaa119b3d847723add))
+
+### Documentation
+
+- Fix README.md
+  ([`f5d9342`](https://github.com/Nya-Foundation/NekoConf/commit/f5d934297a9bedc836101dbd7862ec11e87951e8))
+
+
 ## v1.0.0 (2025-05-06)
 
 ### Bug Fixes
