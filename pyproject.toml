@@ -18,12 +18,10 @@ authors = [
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 
 # Core dependencies only - minimal install
@@ -94,7 +92,7 @@ where = ["."]  # Root directory for discovery
 include = ["nekoconf*"] # Include nekoconf and its subpackages
 
 [tool.setuptools.package-data]
-"nekoconf" = ["server/static/**/*"] # Updated static files path
+"nekoconf" = ["server/html/**/*"] # Updated static files path
 
 [tool.setuptools.exclude-package-data]
 "*" = ["*.pyc", "*.pyo", "__pycache__/*"]
