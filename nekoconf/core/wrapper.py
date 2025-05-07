@@ -30,9 +30,12 @@ class NekoConfigWrapper:
         logger: Optional[logging.Logger] = None,
         *,
         # Document the forwarded parameters
-        in_memory: bool = False,
+        env_override_enabled: bool = True,
+        env_prefix="NEKOCONF",
         remote_url: Optional[str] = None,
         remote_api_key: Optional[str] = None,
+        event_emission_enabled: bool = False,
+        in_memory: bool = False,
         # Other important params you want to expose
         **kwargs: Any,
     ):
@@ -41,6 +44,13 @@ class NekoConfigWrapper:
         Args:
             config_path: Path to the configuration file
             schema_path: Path to the schema file for validation (optional)
+            logger: Logger instance for logging (optional)
+            env_override_enabled: Enable environment variable overrides (default: True)
+            env_prefix: Prefix for environment variables (default: "NEKOCONF")
+            remote_url: URL for remote configuration (optional)
+            remote_api_key: API key for remote configuration (optional)
+            event_emission_enabled: Enable event emission for configuration changes (default: False)
+            in_memory: Use in-memory storage for configuration (default: False)
         """
         self.logger = logger or getLogger(__name__)
 
@@ -48,9 +58,12 @@ class NekoConfigWrapper:
             config_path,
             schema_path,
             self.logger,
-            in_memory=in_memory,
+            env_override_enabled=env_override_enabled,
+            env_prefix=env_prefix,
             remote_url=remote_url,
             remote_api_key=remote_api_key,
+            event_emission_enabled=event_emission_enabled,
+            in_memory=in_memory,
             **kwargs,
         )
         self.config.load()
