@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.0.2 (2025-05-08)
+
+### Bug Fixes
+
+- Refine remote client logic, tune cli comment, adjust env var overwrite default
+  ([`4ecc9d6`](https://github.com/Nya-Foundation/NekoConf/commit/4ecc9d6241ba6129efd9138e42c89cd5c2aac0e7))
+
+
 ## v1.0.1 (2025-05-07)
 
 ### Bug Fixes
