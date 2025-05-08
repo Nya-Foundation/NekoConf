@@ -9,6 +9,7 @@
     <a href="https://pypi.org/project/nekoconf/"><img src="https://img.shields.io/pypi/v/nekoconf.svg" alt="PyPI version"/></a>
     <a href="https://pypi.org/project/nekoconf/"><img src="https://img.shields.io/pypi/pyversions/nekoconf.svg" alt="Python versions"/></a>
     <a href="https://github.com/nya-foundation/nekoconf/blob/main/LICENSE"><img src="https://img.shields.io/github/license/nya-foundation/nekoconf.svg" alt="License"/></a>
+    <a href="https://deepwiki.com/Nya-Foundation/NekoConf"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"/></a>
   </div>
   
   <div>
@@ -108,7 +109,7 @@ Load, access, and modify configuration data using JMESPath expressions.
 
 ```python
 # Load configuration from file (happens automatically on initialization)
-config = NekoConfigClient("config.yaml")
+config = NekoConfigWrapper("config.yaml")
 
 # Access values with type conversion
 host = config.get("database.host")
@@ -141,7 +142,7 @@ export NEKOCONF_FEATURES_ENABLED=true
 
 ```python
 # These values will reflect environment variables automatically
-config = NekoConfigClient("config.yaml")
+config = NekoConfigWrapper("config.yaml")
 print(config.get("database.host"))  # "production-db.example.com" 
 print(config.get_int("database.port"))  # 5433
 print(config.get_bool("features.enabled"))  # True
@@ -439,10 +440,10 @@ DATABASES = {
 
 ```python
 # In your microservice
-from nekoconf import NekoConfigClient
+from nekoconf import NekoConfigWrapper
 
 # Connect to the central configuration server
-config = NekoConfigClient(
+config = NekoConfigWrapper(
     remote_url="http://config-service:8000",
     remote_api_key="service-specific-key",
     in_memory=True,  # No local file needed

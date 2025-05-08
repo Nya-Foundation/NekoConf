@@ -1,15 +1,15 @@
-"""Tests for the NekoConfigClient class."""
+"""Tests for the NekoConfigWrapper class."""
 
 import pytest
 
 from nekoconf.core.wrapper import NekoConfigWrapper
 
 
-class TestNekoConfigClient:
-    """Tests for the NekoConfigClient class."""
+class TestNekoConfigWrapper:
+    """Tests for the NekoConfigWrapper class."""
 
     def test_initialization(self, config_file, schema_file):
-        """Test initializing NekoConfigClient with various arguments."""
+        """Test initializing NekoConfigWrapper with various arguments."""
         # Basic initialization
         api = NekoConfigWrapper(config_file)
         assert api.config.config_path == config_file
