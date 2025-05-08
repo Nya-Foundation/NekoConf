@@ -59,11 +59,13 @@ def add_remote_params(parser: ArgumentParser) -> None:
     """
     parser.add_argument(
         "--remote-url",
+        "-r",
         type=str,
         help="URL of a remote NekoConf server to connect to (e.g., 'http://config-server:8000')",
     )
     parser.add_argument(
         "--remote-api-key",
+        "-k",
         type=str,
         help="API key for authentication with the remote server",
     )

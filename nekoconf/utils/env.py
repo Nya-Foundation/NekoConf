@@ -17,7 +17,7 @@ class EnvOverrideHandler:
 
     def __init__(
         self,
-        enabled: bool = True,
+        enabled: bool = False,
         prefix: str = "NEKOCONF",
         nested_delimiter: str = "_",
         include_paths: Optional[List[str]] = None,
@@ -215,10 +215,12 @@ class EnvOverrideHandler:
         if self.prefix:
             return False
 
-        # Check for numeric segments in dot-separated path
+        # Check for completely numeric segments in dot-separated path
+        # A segment that simply contains numbers (like '8000') is perfectly valid and should be allowed
         parts = env_var_name.split(".")
         for part in parts:
-            if part.isdigit() or (part and part[0].isdigit()):
+            # Only completely empty parts or those that are purely numeric should be rejected
+            if part == "" or (part.isdigit() and self.nested_delimiter != "."):
                 return True
 
         # Check for other problematic characters

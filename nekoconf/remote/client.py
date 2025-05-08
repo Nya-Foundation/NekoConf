@@ -27,7 +27,7 @@ class RemoteConfigClient:
         read_only: bool = True,
         logger: Optional[logging.Logger] = None,
         reconnect_attempts: int = 5,
-        reconnect_delay: float = 1.0,
+        reconnect_delay: float = 2.0,
         connect_timeout: float = 5.0,
     ):
         """Initialize the remote configuration sync client.
@@ -218,14 +218,6 @@ class RemoteConfigClient:
                     self._config_data = config_data
 
                 self.logger.info("Successfully fetched initial configuration from remote server")
-
-                # Call the update callback if provided
-                if self.on_update:
-                    try:
-                        self.on_update(config_data)
-                    except Exception as e:
-                        self.logger.error(f"Error in update callback: {str(e)}")
-
                 return True
             else:
                 self.logger.error(
