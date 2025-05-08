@@ -280,13 +280,13 @@ def test_client_with_auth(web_server_with_auth) -> TestClient:
 
 @pytest.fixture
 def config_api(config_file) -> NekoConfigWrapper:
-    """Create a NekoConfigClient instance for testing."""
+    """Create a NekoConfigWrapper instance for testing."""
     return NekoConfigWrapper(config_file)
 
 
 @pytest.fixture
 def config_api_with_schema(config_file, schema_file) -> NekoConfigWrapper:
-    """Create a NekoConfigClient instance with schema for testing."""
+    """Create a NekoConfigWrapper instance with schema for testing."""
     return NekoConfigWrapper(config_file, schema_file)
 
 

@@ -211,10 +211,12 @@ def handle_server_command(args: argparse.Namespace, logger: Optional[logging.Log
 
         config_path = Path(args.config)
         schema_path = Path(args.schema) if args.schema else None
+        event_emission_enabled = bool(args.event) or False
 
         # Create config manager
-        config_manager = NekoConfigManager(config_path, schema_path, logger=logger)
-        config_manager.load()
+        config_manager = NekoConfigManager(
+            config_path, schema_path, logger=logger, event_emission_enabled=event_emission_enabled
+        )
 
         # Create and run web server
         server = NekoConfigServer(
@@ -255,6 +257,7 @@ def _create_config_manager_from_args(
     remote_api_key = getattr(args, "remote_api_key", None)
     remote_read_only = getattr(args, "remote_read_only", True)
     in_memory = getattr(args, "in_memory", False)
+    event_emission_enabled = bool(getattr(args, "event", False))
 
     # Determine config path (might be None if in_memory mode)
     config_path = None
@@ -270,6 +273,7 @@ def _create_config_manager_from_args(
         remote_api_key=remote_api_key,
         remote_read_only=remote_read_only,
         in_memory=in_memory,
+        event_emission_enabled=event_emission_enabled,
     )
 
 

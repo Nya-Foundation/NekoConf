@@ -3,7 +3,7 @@
 This module defines reusable parameter sets for the NekoConf CLI to reduce code duplication.
 """
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentTypeError
 from typing import Callable
 
 
@@ -97,6 +97,16 @@ def add_in_memory_param(parser: ArgumentParser) -> None:
     )
 
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ("yes", "true", "t", "1"):
+        return True
+    elif v.lower() in ("no", "false", "f", "0"):
+        return False
+    raise ArgumentTypeError("Boolean value expected.")
+
+
 def add_command(
     subparsers,
     name: str,
@@ -124,7 +134,9 @@ def add_command(
     parser.add_argument(
         "--event",
         "-e",
-        type=bool,
+        type=str2bool,
+        nargs="?",
+        const=True,  # allows `--event` without value to imply True
         help="Enable Change Events (CHANGE, CREATE, DELETE, UPDATE...) Notification (default: False)",
         default=False,
     )

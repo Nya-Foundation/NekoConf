@@ -159,7 +159,7 @@ class TestTomlSupport:
 
     @requires_toml
     def test_client_toml_support(self):
-        """Test NekoConfigClient with TOML files."""
+        """Test NekoConfigWrapper with TOML files."""
         # Create a client with a TOML file
         client = NekoConfigWrapper(self.toml_path)
 
