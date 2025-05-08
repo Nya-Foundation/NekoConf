@@ -397,9 +397,9 @@ class TestEventPipeline:
         assert events_received[0] == ("host", "localhost", "0.0.0.0")
 
     def test_client_event_handlers(self):
-        """Test event handlers with NekoConfigClient.
+        """Test event handlers with NekoConfigWrapper.
 
-        Verifies that the higher-level NekoConfigClient correctly
+        Verifies that the higher-level NekoConfigWrapper correctly
         propagates events to registered handlers.
         """
         events_received = []

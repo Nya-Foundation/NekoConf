@@ -68,7 +68,7 @@ class NekoConfigWrapper:
         )
         self.config.load()
 
-        self.logger.debug(f"Initialized NekoConfigClient with {config_path}")
+        self.logger.debug(f"Initialized NekoConfigWrapper with {config_path}")
 
     def get(self, key: Optional[str] = None, default: Any = None) -> Any:
         """Get a configuration value.
@@ -246,7 +246,7 @@ class NekoConfigWrapper:
     def __getattr__(self, name):
         """Delegate method calls to the underlying NekoConfigManager.
 
-        This allows the NekoConfigClient to transparently access all methods
+        This allows the NekoConfigWrapper to transparently access all methods
         of the underlying NekoConfigManager without having to explicitly
         define pass-through methods.
 
