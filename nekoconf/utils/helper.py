@@ -3,6 +3,7 @@
 This module provides common utility functions used across the NekoConf package.
 """
 
+import os
 import copy
 import inspect
 import json
@@ -39,7 +40,7 @@ __all__ = [
 
 def getLogger(
     name: str,
-    level: Union[int, str] = logging.INFO,
+    level: int = logging.INFO,
     format_str: str = "%(log_color)s%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers: List[logging.Handler] = None,
 ) -> logging.Logger:
@@ -50,20 +51,19 @@ def getLogger(
 
     Args:
         name: The name of the logger, typically the module name
-        level: Logging level (either logging constant or string name)
+        level: Logging level (e.g., logging.DEBUG, logging.INFO)
         format_str: Message format string for the logger
         handlers: Optional list of handlers to add to the logger
 
     Returns:
         Configured logger instance
     """
-    # Convert string level to int if necessary
-    if isinstance(level, str):
-        numeric_level = getattr(logging, level.upper(), None)
-        if not isinstance(numeric_level, int):
-            raise ValueError(f"Invalid log level: {level}")
-        level = numeric_level
-
+    # Environment variable overrides
+    env_level = os.getenv("LOG_LEVEL", None)
+    if env_level:
+        numeric_level = getattr(logging, env_level.upper(), None)
+        if isinstance(numeric_level, int):
+            level = numeric_level
     # Get or create logger
     logger = logging.getLogger(name)
 

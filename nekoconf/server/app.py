@@ -324,6 +324,7 @@ class NekoConfigServer:
             try:
                 # Send initial configuratio`n
                 await websocket.send_json({"type": "config", "data": self.config.get()})
+                self.logger.debug("WebSocket client connected, sending initial config")
 
                 # Keep the connection open, handle incoming messages
                 while True:

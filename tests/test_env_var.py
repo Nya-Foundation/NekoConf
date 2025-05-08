@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 
 import pytest
 
@@ -50,7 +49,9 @@ def test_basic_override(temp_config_file):
     os.environ["NEKOCONF_SERVICE_PORT"] = "9090"  # String value
     os.environ["NEKOCONF_DEBUG_MODE"] = "true"  # String value for boolean
 
-    manager = NekoConfigManager(temp_config_file)  # Default prefix NEKOCONF_
+    manager = NekoConfigManager(
+        temp_config_file, env_override_enabled=True
+    )  # Default prefix NEKOCONF_
 
     assert manager.get("service.port") == 9090  # Parsed as int
     assert manager.get("debug.mode") is True  # Parsed as bool
@@ -61,7 +62,7 @@ def test_nested_override(temp_config_file):
     """Test override of a nested key."""
     os.environ["NEKOCONF_DATABASE_CREDENTIALS_USER"] = "test_user"
 
-    manager = NekoConfigManager(temp_config_file)
+    manager = NekoConfigManager(temp_config_file, env_override_enabled=True)
 
     assert manager.get("database.credentials.user") == "test_user"
     assert manager.get("database.host") == "localhost"  # Unchanged parent
@@ -72,7 +73,7 @@ def test_custom_prefix(temp_config_file):
     os.environ["MYAPP_SERVICE_PORT"] = "9999"
     os.environ["NEKOCONF_SERVICE_PORT"] = "1111"  # Should be ignored
 
-    manager = NekoConfigManager(temp_config_file, env_prefix="MYAPP")
+    manager = NekoConfigManager(temp_config_file, env_prefix="MYAPP", env_override_enabled=True)
 
     assert manager.get("service.port") == 9999
 
@@ -81,7 +82,9 @@ def test_custom_delimiter(temp_config_file):
     """Test using a custom delimiter for nested keys."""
     os.environ["NEKOCONF_SERVICE_PORT"] = "7777"  # Using single underscore
 
-    manager = NekoConfigManager(temp_config_file, env_nested_delimiter="_")
+    manager = NekoConfigManager(
+        temp_config_file, env_nested_delimiter="_", env_override_enabled=True
+    )
 
     assert manager.get("service.port") == 7777
 
@@ -105,7 +108,7 @@ def test_type_parsing(temp_config_file):
         '{"user": "env_user", "pass": "env_pass"}'  # JSON dict
     )
 
-    manager = NekoConfigManager(temp_config_file)
+    manager = NekoConfigManager(temp_config_file, env_override_enabled=True)
 
     assert manager.get("service.port") == 9091
     assert manager.get("service.enabled") is False
@@ -125,6 +128,7 @@ def test_exclusion(temp_config_file):
 
     manager = NekoConfigManager(
         temp_config_file,
+        env_override_enabled=True,
         env_exclude_paths=[
             "database.port",
             "service.name",
@@ -144,6 +148,7 @@ def test_exclusion_nested_parent(temp_config_file):
     manager = NekoConfigManager(
         temp_config_file,
         env_exclude_paths=["database"],  # Exclude the whole database section
+        env_override_enabled=True,
     )
 
     assert manager.get("database.host") == "localhost"  # Excluded
@@ -159,6 +164,7 @@ def test_inclusion(temp_config_file):
     manager = NekoConfigManager(
         temp_config_file,
         env_include_paths=["service.port", "debug.mode"],  # Only allow these
+        env_override_enabled=True,
     )
 
     assert manager.get("service.port") == 9090  # Included -> Overridden
@@ -175,6 +181,7 @@ def test_inclusion_nested_parent(temp_config_file):
     manager = NekoConfigManager(
         temp_config_file,
         env_include_paths=["database"],  # Include the whole database section
+        env_override_enabled=True,
     )
 
     assert manager.get("database.host") == "remote-db"  # Included (child) -> Overridden
@@ -193,6 +200,7 @@ def test_include_exclude_precedence(temp_config_file):
         temp_config_file,
         env_include_paths=["database"],  # Include database section
         env_exclude_paths=["database.host"],  # Exclude specific host key
+        env_override_enabled=True,
     )
 
     assert manager.get("database.host") == "localhost"  # Excluded wins -> Original
@@ -201,7 +209,7 @@ def test_include_exclude_precedence(temp_config_file):
 
 def test_reload_applies_overrides(temp_config_file):
     """Test that calling load() again re-applies overrides."""
-    manager = NekoConfigManager(temp_config_file)
+    manager = NekoConfigManager(temp_config_file, env_override_enabled=True)
     assert manager.get("service.port") == 8080
 
     # Set env var *after* initial load
