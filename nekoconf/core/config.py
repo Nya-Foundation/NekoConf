@@ -45,7 +45,7 @@ class NekoConfigManager:
         # Lock settings
         lock_timeout: float = 1.0,
         # Environment variable override parameters
-        env_override_enabled: bool = True,
+        env_override_enabled: bool = False,
         env_prefix: str = "NEKOCONF",
         env_nested_delimiter: str = "_",
         env_include_paths: Optional[List[str]] = None,
@@ -70,7 +70,7 @@ class NekoConfigManager:
             schema_path: Path to the schema file for validation (optional)
             logger: Optional logger instance for logging messages
             lock_timeout: Timeout in seconds for acquiring file locks
-            env_override_enabled: Enable/disable environment variable overrides (default: True)
+            env_override_enabled: Enable/disable environment variable overrides (default: Fale)
             env_prefix: Prefix for environment variables (default: "NEKOCONF"). Set to "" for no prefix.
             env_nested_delimiter: Delimiter used in env var names for nested keys (default: "_")
             env_include_paths: List of dot-separated paths to include in overrides.
@@ -94,7 +94,7 @@ class NekoConfigManager:
         self.in_memory = in_memory
 
         # Determine operating mode
-        self.remote_sync: "RemoteConfigClient" = None
+        self.remote_sync: RemoteConfigClient = None
         self.config_path = None
         self.lock_manager = None
         self.event_disabled = not event_emission_enabled
@@ -207,13 +207,12 @@ class NekoConfigManager:
             if self.remote_sync.start():
                 # Initial load from remote was successful
                 self.data = self.remote_sync.get_config()
-                self.event_pipeline.emit(
-                    EventType.RELOAD,
-                    config_data=self.data,
-                    old_value={},
-                    new_value=self.data,
-                    ignore=self.event_disabled,
-                )
+                current_data = load_file(self.config_path) or {}
+
+                # If the remote data is different from the local file, save it
+                if current_data != self.data:
+                    save_file(self.config_path, self.data)
+
             elif self.config_path:
                 # Remote failed but we have a local file, fall back to it
                 self.logger.warning("Remote sync failed, falling back to local configuration")
@@ -374,23 +373,33 @@ class NekoConfigManager:
         if self.in_memory and not self.config_path:
             return True
 
-        # Otherwise save to local file if we have one
-        if self.config_path:
-            try:
-                # Use lock manager to prevent race conditions
-                with self.lock_manager:
-                    save_file(self.config_path, self.data)
-                    self.logger.debug(f"Saved configuration to {self.config_path}")
-                return True
+        if not self.config_path:
+            # If no config path is set, we can't save to a file
+            self.logger.warning("No config path set, cannot save configuration")
+            return False
 
-            except filelock.Timeout:
-                self.logger.error(
-                    "Could not acquire lock to write config file - another process may be using it"
-                )
-                return False
-            except Exception as e:
-                self.logger.error(f"Error saving configuration: {e}")
-                return False
+        # Otherwise save to local file if we have one
+        try:
+            # Use lock manager to prevent race conditions
+            with self.lock_manager:
+                target_data = load_file(self.config_path) or {}
+
+                if target_data == self.data:
+                    self.logger.debug("No changes detected, not saving configuration")
+                    return True
+
+                save_file(self.config_path, self.data)
+                self.logger.debug(f"Saved configuration to {self.config_path}")
+            return True
+
+        except filelock.Timeout:
+            self.logger.error(
+                "Could not acquire lock to write config file - another process may be using it"
+            )
+            return False
+        except Exception as e:
+            self.logger.error(f"Error saving configuration: {e}")
+            return False
 
         return True
 
