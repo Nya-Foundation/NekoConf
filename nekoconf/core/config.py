@@ -548,7 +548,7 @@ class NekoConfigManager:
 
         # if event emission is disabled, skip emitting events
         if self.event_disabled:
-            return
+            return True
 
         # Detect changes between configurations
         changes = ChangeTracker.detect_changes(old_data, data)

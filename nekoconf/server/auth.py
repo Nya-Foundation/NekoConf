@@ -13,6 +13,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import HTMLResponse, JSONResponse
 
 from nekoconf.utils.helper import getLogger
+from starlette.responses import RedirectResponse
 
 
 class NekoAuthGuard:
@@ -115,7 +116,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Skip auth for specific paths if needed
-        excluded_paths = ["/docs", "/redoc", "/openapi.json", "/health"]
+        excluded_paths = [
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+            "/health",
+            "/login.html",
+            "/favicon.ico",
+            "/static/logo.svg",
+        ]
         if any(request.url.path.startswith(path) for path in excluded_paths):
             return await call_next(request)
 
@@ -151,22 +160,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
     def _generate_login_page(self, request: Request):
         """Generate a login page for the config ui"""
-        # load the login HTML template using importlib.resources
-        try:
-            # Adjusted path for the 'web' subpackage
-            template_path = importlib.resources.files("nekoconf.server") / "html" / "login.html"
-            with template_path.open("r") as f:
-                html_content = f.read()
-        except (FileNotFoundError, TypeError, ImportError) as e:
-            # Log an error and return a generic error response
-            self.logger.error(
-                f"Login page template not found or cannot be loaded - {e} traceback: {e.__traceback__}"
-            )
-            return JSONResponse(
-                status_code=500,
-                content={"error": "Internal server error: Login page unavailable"},
-            )
+        # Get current path and redirect to login.html
+        current_path = request.url.path
+        # Ensure path ends with a slash before adding login.html
+        if not current_path.endswith("/"):
+            current_path += "/"
 
-        # Replace placeholders in the HTML template
-        html_content = html_content.replace("{{ return_path }}", request.url.path)
-        return HTMLResponse(content=html_content, status_code=401)
+        # Create redirect response to login.html at current path
+        login_url = f"{current_path}login.html"
+
+        self.logger.debug(f"Redirecting unauthorized request to login page: {login_url}")
+        return RedirectResponse(url=login_url, status_code=302)

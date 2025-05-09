@@ -37,6 +37,14 @@ def authenticated_app():
     def root_endpoint():
         return {"status": "ok"}
 
+    @app.get("/login.html")
+    def login_page():
+        return JSONResponse(
+            content={"message": "Login page"},
+            status_code=302,
+            headers={"Location": "/test/login.html"},
+        )
+
     return TestClient(app)
 
 
@@ -178,11 +186,11 @@ class TestAuthMiddleware:
     def test_root_path_no_auth(self, authenticated_app):
         """Test accessing the root path without authentication."""
         response = authenticated_app.get("/")
-        assert response.status_code == 401  # Should return login page
-        assert "html" in response.text.lower()  # Should be HTML
+        assert response.status_code == 403
+        assert "Unauthorized" in response.text
 
     @pytest.mark.asyncio
-    async def test_generate_login_page(self, auth_middleware):
+    async def test_login_page_redirect(self, auth_middleware):
         """Test generating a login page."""
         request = MagicMock()
         request.url.path = "/test"
@@ -201,7 +209,6 @@ class TestAuthMiddleware:
             # Generate the login page
             response = auth_middleware._generate_login_page(request)
 
-            # Check response content (should contain the template with replaced values)
-            assert response.status_code == 401
-            assert "html" in response.body.decode().lower()
-            assert "/test" in response.body.decode()  # Should contain the return path
+            # Check response content, redirection, and status code
+            assert response.status_code == 302
+            assert response.headers["Location"] == "/test/login.html"
