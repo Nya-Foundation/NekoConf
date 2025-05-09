@@ -1,6 +1,25 @@
 # CHANGELOG
 
 
+## v1.0.3 (2025-05-09)
+
+### Bug Fixes
+
+- Fix webui save won't update local file.. update README.md, fix logic.html serving logic
+  ([`8372bec`](https://github.com/Nya-Foundation/NekoConf/commit/8372becf6ad4cbabd81b546183e8d4dbd1b1ad0e))
+
+### Chores
+
+- Fix test cases
+  ([`0cd4812`](https://github.com/Nya-Foundation/NekoConf/commit/0cd48127bd0e3af35a02a04e29db21939b2af9d8))
+
+- **format**: Apply automatic formatting [skip ci]
+  ([`a630031`](https://github.com/Nya-Foundation/NekoConf/commit/a630031f6c523909afcc680ece892112d929eb5e))
+
+- **format**: Apply automatic formatting [skip ci]
+  ([`258e1dc`](https://github.com/Nya-Foundation/NekoConf/commit/258e1dceb93e12e63dc2aa86b501942b293808df))
+
+
 ## v1.0.2 (2025-05-08)
 
 ### Bug Fixes
