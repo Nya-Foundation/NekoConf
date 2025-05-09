@@ -306,12 +306,13 @@
 
     <div class="login-card">
       <div class="header">
-        <div class="logo">
-          <svg class="app-logo" viewBox="0 0 100 100" aria-hidden="true">
-            <path
-              d="M50 0C22.4 0 0 22.4 0 50s22.4 50 50 50 50-22.4 50-50S77.6 0 50 0zm0 90c-22.1 0-40-17.9-40-40s17.9-40 40-40 40 17.9 40 40-17.9 40-40 40zM30 35c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm40 0c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zM50 65c-8.3 0-15-6.7-15-15h5c0 5.5 4.5 10 10 10s10-4.5 10-10h5c0 8.3-6.7 15-15 15z"
-            />
-          </svg>
+        <div>
+          <img
+            class="app-logo"
+            src="{{ request.scope.root_path }}/static/logo.svg"
+            width="60"
+            height="60"
+          />
         </div>
         <h1>NekoConf</h1>
         <p class="subtitle">Enter your API key to access the service</p>
@@ -357,7 +358,7 @@
         <p>
           Powered by
           <a
-            href="https://github.com/NekoConf"
+            href="https://github.com/Nya-Foundation/NekoConf"
             target="_blank"
             rel="noopener noreferrer"
             >NekoConf</a

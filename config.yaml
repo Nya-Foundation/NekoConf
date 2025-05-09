@@ -5,8 +5,8 @@ database:
   port: 5432
   user: user
 features:
-  enable_auth: true
-  enable_cache: true
+  enable_auth: false
+  enable_cache: false
   enable_metrics: false
 logging:
   file: /var/log/myapp.log
