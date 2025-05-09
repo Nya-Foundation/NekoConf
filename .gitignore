@@ -175,3 +175,4 @@ cython_debug/
 
 .clean.py
 .build.sh
+cofig.yaml

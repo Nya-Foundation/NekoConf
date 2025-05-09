@@ -9,6 +9,8 @@
     <a href="https://pypi.org/project/nekoconf/"><img src="https://img.shields.io/pypi/v/nekoconf.svg" alt="PyPI version"/></a>
     <a href="https://pypi.org/project/nekoconf/"><img src="https://img.shields.io/pypi/pyversions/nekoconf.svg" alt="Python versions"/></a>
     <a href="https://github.com/nya-foundation/nekoconf/blob/main/LICENSE"><img src="https://img.shields.io/github/license/nya-foundation/nekoconf.svg" alt="License"/></a>
+    <a href="https://pepy.tech/projects/nekoconf"><img src="https://static.pepy.tech/badge/nekoconf" alt="PyPI Downloads"/></a>
+    <a href="https://hub.docker.com/r/k3scat/nekoconf"><img src="https://img.shields.io/docker/pulls/k3scat/nekoconf" alt="Docker Pulls"/></a>
     <a href="https://deepwiki.com/Nya-Foundation/NekoConf"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"/></a>
   </div>
   
@@ -38,6 +40,10 @@ NekoConf is a dynamic and flexible configuration management system for Python ap
 
 > [!NOTE]
 > This project is currently in beta. We welcome feedback and contributions!
+
+## 🛠️ Prerequisites
+- Python 3.11 or higher
+- Docker (optional, for containerized deployment)
 
 ## 📦 Installation
 
