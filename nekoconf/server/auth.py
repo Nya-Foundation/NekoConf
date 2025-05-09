@@ -10,10 +10,9 @@ from typing import Optional
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import APIKeyHeader
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import HTMLResponse, JSONResponse
+from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from nekoconf.utils.helper import getLogger
-from starlette.responses import RedirectResponse
 
 
 class NekoAuthGuard:
