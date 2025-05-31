@@ -1,29 +1,26 @@
-"""Tests for the NekoConfigWrapper class."""
+"""Tests for the NekoConf class."""
 
 import pytest
 
-from nekoconf.core.wrapper import NekoConfigWrapper
+from nekoconf.core.config import NekoConf
 
 
-class TestNekoConfigWrapper:
-    """Tests for the NekoConfigWrapper class."""
+class TestNekoConf:
+    """Tests for the NekoConf class."""
 
     def test_initialization(self, config_file, schema_file):
-        """Test initializing NekoConfigWrapper with various arguments."""
+        """Test initializing NekoConf with various arguments."""
         # Basic initialization
-        api = NekoConfigWrapper(config_file)
-        assert api.config.config_path == config_file
-        assert api.config.schema_path is None
+        api = NekoConf(config_file)
+        assert api.schema_path is None
 
         # With schema
-        api = NekoConfigWrapper(config_file, schema_file)
-        assert api.config.config_path == config_file
-        assert api.config.schema_path == schema_file
+        api = NekoConf(config_file, schema_file)
+        assert api.schema_path == schema_file
 
         # With string paths
-        api = NekoConfigWrapper(str(config_file), str(schema_file))
-        assert api.config.config_path == config_file
-        assert api.config.schema_path == schema_file
+        api = NekoConf(str(config_file), str(schema_file))
+        assert api.schema_path == schema_file
 
     @pytest.mark.parametrize(
         "key,expected,default",
@@ -71,7 +68,7 @@ class TestNekoConfigWrapper:
     def test_complex_getters(self, config_api, complex_config_file):
         """Test getting complex configuration values."""
         # Create API with complex config
-        api = NekoConfigWrapper(complex_config_file)
+        api = NekoConf(complex_config_file)
 
         # Float values
         value = api.get_float("server.timeout")

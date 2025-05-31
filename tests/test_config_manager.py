@@ -2,31 +2,15 @@
 
 from pathlib import Path
 
-from nekoconf.core.config import NekoConfigManager
+from nekoconf.core.config import NekoConf
 
 
 class TestNekoConfigBase:
-    """Base tests for NekoConfigManager initialization and basic functionality."""
-
-    def test_initialization(self):
-        """Test various initialization scenarios."""
-        # String path
-        path = "examples/sample_config.yaml"
-        manager = NekoConfigManager(path)
-        assert isinstance(manager.config_path, Path)
-        assert str(manager.config_path) == path
-        assert manager.schema_path is None
-
-        # Path object
-        path = Path("examples/sample_config.yaml")
-        schema_path = Path("examples/sample_schema.json")
-        manager = NekoConfigManager(path, schema_path)
-        assert manager.config_path == path
-        assert manager.schema_path == schema_path
+    """Base tests for NekoConf initialization and basic functionality."""
 
     def test_load_and_save(
         self,
-        config_manager: NekoConfigManager,
+        config_manager: NekoConf,
         sample_config,
         complex_sample_config,
         config_file,
@@ -50,7 +34,7 @@ class TestNekoConfigBase:
         assert success is True
 
         # Verify file was updated
-        new_manager = NekoConfigManager(config_file)
+        new_manager = NekoConf(config_file)
 
         new_manager.set("server.port", 9000)
         new_manager.set("new_setting", "value")

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from nekoconf.core.config import NekoConfigManager
+from nekoconf.core.config import NekoConf
 from nekoconf.event.transaction import TransactionManager
 
 
@@ -15,7 +15,7 @@ class TestTransactionManager:
     @pytest.fixture
     def mock_config_manager(self):
         """Create a mock config manager for testing."""
-        config = MagicMock(spec=NekoConfigManager)
+        config = MagicMock(spec=NekoConf)
         config.data = {
             "database": {
                 "host": "localhost",

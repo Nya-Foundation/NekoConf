@@ -13,8 +13,8 @@ NekoConf provides a powerful event system that lets your application react insta
 ### Basic Change Handler
 
 ```python
-from nekoconf import NekoConfigManager
-config = NekoConfigManager("config.yaml")
+from nekoconf import NekoConf
+config = NekoConf("config.yaml")
 
 @config.on_change("database.*")
 def handle_db_change(event_type, path, old_value, new_value, config_data, **kwargs):

@@ -6,12 +6,11 @@ This guide covers advanced NekoConf features for power users and integrators.
 
 NekoConf uses file locks to prevent race conditions when multiple processes or threads access the same config file.
 
-- All file operations are protected by a lock (see `LockManager`).
 - Locks are automatically cleaned up on exit or signal.
 - For custom workflows, use the config manager as a context manager:
 
 ```python
-with NekoConfigManager("config.yaml") as config:
+with NekoConf("config.yaml") as config:
     config.set("key", "value")
     config.save()
 ```

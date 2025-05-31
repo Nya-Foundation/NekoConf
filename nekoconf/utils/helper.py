@@ -8,21 +8,28 @@ import inspect
 import json
 import logging
 import os
+import re
+import ast
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-import colorlog
-import jmespath
-import jmespath.exceptions
-import yaml
+try:
+    import colorlog
+except ImportError:
+    colorlog = None
 
 try:
-    import tomli  # Python < 3.11
+    import yaml
+except ImportError:
+    yaml = None
+
+try:
+    import tomllib  # Python >= 3.11
 except ImportError:
     try:
-        import tomllib as tomli  # Python >= 3.11
+        import tomli as tomllib  # Python < 3.11
     except ImportError:
-        tomli = None  # TOML support will be disabled
+        tomllib = None  # TOML support will be disabled
 
 
 __all__ = [
@@ -34,6 +41,8 @@ __all__ = [
     "deep_merge",
     "get_nested_value",
     "set_nested_value",
+    "delete_nested_value",
+    "parse_path",
     "is_async_callable",
 ]
 
@@ -73,21 +82,27 @@ def getLogger(
 
         # Create default handler if none provided
         if not handlers:
-            handler = colorlog.StreamHandler()
-            handler.setLevel(level)
+            if colorlog:
+                handler = colorlog.StreamHandler()
+                handler.setLevel(level)
 
-            # Define color scheme for different log levels
-            color_formatter = colorlog.ColoredFormatter(
-                format_str,
-                log_colors={
-                    "DEBUG": "cyan",
-                    "INFO": "green",
-                    "WARNING": "yellow",
-                    "ERROR": "red",
-                    "CRITICAL": "red,bg_white",
-                },
-            )
-            handler.setFormatter(color_formatter)
+                # Define color scheme for different log levels
+                color_formatter = colorlog.ColoredFormatter(
+                    format_str,
+                    log_colors={
+                        "DEBUG": "cyan",
+                        "INFO": "green",
+                        "WARNING": "yellow",
+                        "ERROR": "red",
+                        "CRITICAL": "red,bg_white",
+                    },
+                )
+                handler.setFormatter(color_formatter)
+            else:
+                handler = logging.StreamHandler()
+                handler.setLevel(level)
+                formatter = logging.Formatter(format_str.replace("%(log_color)s", ""))
+                handler.setFormatter(formatter)
             handlers = [handler]
 
         # Add all handlers to the logger
@@ -137,7 +152,10 @@ def save_file(path: Union[str, Path], data: Any, logger: Optional[logging.Logger
         if path.suffix.lower() == ".yaml" or path.suffix.lower() == ".yml":
             # Save as YAML
             with open(path, "w") as f:
-                yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+                if yaml:
+                    yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+                else:
+                    json.dump(data, f, indent=2)  # Fallback to JSON
         elif path.suffix.lower() == ".json":
             # Save as JSON
             with open(path, "w") as f:
@@ -158,12 +176,36 @@ def save_file(path: Union[str, Path], data: Any, logger: Optional[logging.Logger
         else:
             # Default to YAML for unknown extensions
             with open(path, "w") as f:
-                yaml.dump(data, f, default_flow_style=False)
+                if yaml:
+                    yaml.dump(data, f, default_flow_style=False)
+                else:
+                    json.dump(data, f, indent=2)  # Fallback to JSON
 
         return True
     except Exception as e:
         logger.error(f"Error saving file {path}: {e}")
         return False
+
+
+def load_string(data: str, format: str = "json") -> Any:
+    """Load data from a string based on the specified format.
+
+    Args:
+        data: String containing the data
+        format: Format of the data (e.g., "json", "yaml", "toml")
+
+    Returns:
+        Loaded data as a dictionary, or empty dict if loading failed
+    """
+    if not data.strip():
+        return {}
+
+    if format == "yaml":
+        return yaml.safe_load(data) or {}
+    elif format == "toml":
+        return tomllib.loads(data) or {}
+    else:
+        return json.loads(data)  # Fallback to JSON
 
 
 def load_file(path: Union[str, Path], logger: Optional[logging.Logger] = None) -> Any:
@@ -188,7 +230,10 @@ def load_file(path: Union[str, Path], logger: Optional[logging.Logger] = None) -
         if path.suffix.lower() == ".yaml" or path.suffix.lower() == ".yml":
             # Load YAML
             with open(path, "r") as f:
-                return yaml.safe_load(f) or {}
+                if yaml:
+                    return yaml.safe_load(f) or {}
+                else:
+                    return json.load(f)  # Fallback to JSON
         elif path.suffix.lower() == ".json":
             # Load JSON
             with open(path, "r") as f:
@@ -196,75 +241,62 @@ def load_file(path: Union[str, Path], logger: Optional[logging.Logger] = None) -
         elif path.suffix.lower() == ".toml":
             # Load TOML
             try:
-                # Try tomllib in Python 3.11+
-                try:
-                    import tomllib
-
+                if tomllib:
                     with open(path, "rb") as f:
                         return tomllib.load(f) or {}
-                except ImportError:
-                    # Fall back to tomli
-                    try:
-                        import tomli
-
-                        with open(path, "rb") as f:
-                            return tomli.load(f) or {}
-                    except ImportError:
-                        logger.error(
-                            "TOML format requested but neither tomllib (Python 3.11+) "
-                            "nor tomli package is available. "
-                            "Install with: pip install tomli"
-                        )
-                        return {}  # Return empty dict instead of None
+                else:
+                    logger.error(
+                        "TOML format requested but tomllib/tomli package not available. "
+                        "Install with: pip install tomli"
+                    )
+                    return {}
             except Exception as e:
                 logger.error(f"Error parsing TOML file {path}: {e}")
-                return {}  # Return empty dict instead of None
+                return {}
         else:
             # Default to YAML for unknown extensions
             with open(path, "r") as f:
-                return yaml.safe_load(f) or {}
+                if yaml:
+                    return yaml.safe_load(f) or {}
+                else:
+                    return json.load(f)  # Fallback to JSON
     except Exception as e:
         logger.error(f"Error loading file {path}: {e}")
         return {}  # Return empty dict instead of None
 
 
 def parse_value(value_str: str) -> Any:
-    """Parse a string value into the appropriate Python type.
+    """Parse environment variable value with robust type detection.
 
-    Args:
-        value_str: String value to parse
-
-    Returns:
-        Parsed value as the appropriate type
+    Uses ast.literal_eval for safety and falls back to string preservation.
     """
-    # Handle empty string
     if not value_str:
         return ""
 
-    # Try to parse as JSON
-    try:
-        return json.loads(value_str)
-    except json.JSONDecodeError:
-        pass
-
-    # Handle common literal values
-    if value_str.lower() == "true":
+    # Handle explicit boolean strings
+    lower_val = value_str.lower()
+    if lower_val in ("true", "yes", "1", "on"):
         return True
-    if value_str.lower() == "false":
+    elif lower_val in ("false", "no", "0", "off"):
         return False
-    if value_str.lower() == "null" or value_str.lower() == "none":
+    elif lower_val in ("null", "none", "~", ""):
         return None
 
-    # Try to parse as number
+    # Try ast.literal_eval for safe evaluation of Python literals
     try:
-        if "." in value_str:
-            return float(value_str)
-        else:
-            return int(value_str)
-    except ValueError:
+        # This safely handles: numbers, strings, lists, dicts, tuples, etc.
+        return ast.literal_eval(value_str)
+    except (ValueError, SyntaxError):
         pass
 
-    # Default to returning as string
+    # For JSON-like structures that ast can't handle
+    if value_str.startswith(("{", "[")):
+        try:
+            return json.loads(value_str)
+        except json.JSONDecodeError:
+            pass
+
+    # Preserve original string (including quotes)
     return value_str
 
 
@@ -297,61 +329,160 @@ def deep_merge(
     return result
 
 
-def get_nested_value(data: Dict[str, Any], key: str, default: Any = None) -> Any:
-    """Get a value from a nested dictionary using JMESPath expressions or JMESPath expressions.
+def _parse_path_segment(segment: str) -> List[str]:
+    """Parse a single path segment, handling array notation.
 
-    Args:
-        data: Dictionary to get value from
-        key: Key in JMESPath format (e.g., "server.host" or "servers[*].host")
-        default: Default value to return if key is not found
-
-    Returns:
-        Value from the dictionary or default if not found
+    Examples:
+        "key" -> ["key"]
+        "key[0]" -> ["key", "0"]
+        "key[*]" -> ["key", "*"]
     """
-    if not key:
+    match = re.match(r"^([^[\]]+)\[([^\]]+)\]$", segment)
+    if match:
+        key, index = match.groups()
+        return [key, index]
+    return [segment]
+
+
+def parse_path(path: str) -> List[str]:
+    """Parse dot notation path into flat list of keys and indices.
+
+    Examples:
+        "database.host" -> ["database", "host"]
+        "servers[0].host" -> ["servers", "0", "host"]
+        "apps[*].config.*.port" -> ["apps", "*", "config", "*", "port"]
+    """
+    if not path:
+        return []
+
+    result = []
+    for segment in path.split("."):
+        result.extend(_parse_path_segment(segment))
+
+    return result
+
+
+def get_nested_value(data: Dict[str, Any], path: str, default: Any = None) -> Any:
+    """Get a value from a nested dictionary using dot notation.
+
+    Examples:
+        get_nested_value(data, "database.host")
+        get_nested_value(data, "servers[0].port")
+    """
+    if not path:
         return data
 
     try:
-        result = jmespath.search(key, data)
-        if result is not None:  # JMESPath returns None for non-matches
-            return result
-    except jmespath.exceptions.JMESPathTypeError:
+        current = data
+        for key in parse_path(path):
+            if key.isdigit():
+                current = current[int(key)]
+            else:
+                current = current[key]
+        return current
+    except (KeyError, IndexError, TypeError):
         return default
 
-    return default
 
+def set_nested_value(data: Dict[str, Any], path: str, value: Any) -> bool:
+    """Set a value in a nested dictionary using dot notation.
 
-def set_nested_value(data: Dict[str, Any], key: str, value: Any) -> bool:
-    """Set a value in a nested dictionary using JMESPath expressions.
-
-    Args:
-        data: Dictionary to set value in
-        key: Key in JMESPath expressions (e.g., "server.host")
-        value: Value to set
-
-    Returns:
-        True if value was changed, False otherwise
+    Examples:
+        set_nested_value(data, "database.host", "localhost")
+        set_nested_value(data, "servers[0].port", 8080)
     """
-    if not key:
+    if not path:
         return False
 
-    parts = key.split(".") if "." in key else [key]
+    # Check if current value is the same to avoid unnecessary changes
+    sentinel = object()
+    if get_nested_value(data, path, sentinel) == value:
+        return False
+
+    keys = parse_path(path)
+    if not keys:
+        return False
+
     current = data
 
-    # Navigate to the parent of the target key
-    for part in parts[:-1]:
-        if part not in current or not isinstance(current[part], dict):
-            current[part] = {}
-        current = current[part]
+    # Navigate to the parent, creating structure as needed
+    for key in keys[:-1]:
+        if key.isdigit():
+            # This is an array index (came from [index] notation)
+            index = int(key)
+            if not isinstance(current, list):
+                return False
+            # Extend list if necessary
+            while len(current) <= index:
+                current.append({})
+            current = current[index]
+        else:
+            # This is a regular key - always create as dict
+            if key not in current:
+                current[key] = {}
+            current = current[key]
 
-    # Check if value actually changes
-    last_key = parts[-1]
-    if last_key in current and current[last_key] == value:
+    # Set the final value
+    final_key = keys[-1]
+    try:
+        if final_key.isdigit() and isinstance(current, list):
+            # Setting array element
+            index = int(final_key)
+            while len(current) <= index:
+                current.append(None)
+            current[index] = value
+        else:
+            # Setting dict key (even if key looks like number)
+            current[final_key] = value
+        return True
+    except (KeyError, IndexError, TypeError):
         return False
 
-    # Set the value
-    current[last_key] = value
-    return True
+
+def delete_nested_value(data: Dict[str, Any], path: str) -> tuple[bool, Any]:
+    """Delete a value from a nested dictionary using dot notation.
+
+    Returns:
+        Tuple of (success, old_value)
+    """
+    if not path:
+        return False, None
+
+    # Check if key exists and get old value
+    sentinel = object()
+    old_value = get_nested_value(data, path, sentinel)
+    if old_value is sentinel:
+        return False, None
+
+    keys = parse_path(path)
+    if not keys:
+        return False, None
+
+    current = data
+
+    # Navigate to the parent
+    try:
+        for key in keys[:-1]:
+            if key.isdigit():
+                current = current[int(key)]
+            else:
+                current = current[key]
+    except (KeyError, IndexError, TypeError):
+        return False, None
+
+    # Delete the final key/index
+    final_key = keys[-1]
+    try:
+        if final_key.isdigit():
+            index = int(final_key)
+            if not isinstance(current, list):
+                return False, None
+            del current[index]
+        else:
+            del current[final_key]
+        return True, old_value
+    except (KeyError, IndexError, TypeError):
+        return False, None
 
 
 def is_async_callable(func):

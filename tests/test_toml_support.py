@@ -7,8 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from nekoconf.core.config import NekoConfigManager
-from nekoconf.core.wrapper import NekoConfigWrapper
+from nekoconf.core.config import NekoConf
 from nekoconf.utils.helper import load_file, save_file
 
 # Skip tests if tomli/tomli_w packages are not available
@@ -89,7 +88,7 @@ class TestTomlSupport:
             )
 
         # Load the file
-        config = NekoConfigManager(self.toml_path)
+        config = NekoConf(self.toml_path)
         config.load()
 
         # Check the values
@@ -108,7 +107,7 @@ class TestTomlSupport:
     def test_save_toml_file(self):
         """Test saving configuration to a TOML file."""
         # Create a configuration
-        config = NekoConfigManager(self.toml_path)
+        config = NekoConf(self.toml_path)
         config.set("title", "TOML Test")
         config.set("server.host", "0.0.0.0")
         config.set("server.port", 9000)
@@ -159,9 +158,9 @@ class TestTomlSupport:
 
     @requires_toml
     def test_client_toml_support(self):
-        """Test NekoConfigWrapper with TOML files."""
+        """Test NekoConf with TOML files."""
         # Create a client with a TOML file
-        client = NekoConfigWrapper(self.toml_path)
+        client = NekoConf(self.toml_path)
 
         # Set some values
         client.set("server.host", "example.com")
@@ -218,7 +217,7 @@ class TestTomlSupport:
             )
 
         # Create a valid configuration
-        config = NekoConfigManager(self.toml_path, schema_path)
+        config = NekoConf(self.toml_path, schema_path)
         config.set("server.host", "localhost")
         config.set("server.port", 8080)
         config.set("logging.level", "INFO")

@@ -1,7 +1,5 @@
 # Core dependencies
 pyyaml>=6.0
-filelock>=3.8.0
-jmespath>=1.0.0
 colorlog>=6.0.0
 tomli>=2.0.0
 tomli-w>=1.0.0

@@ -5,17 +5,17 @@ from ..utils.helper import deep_merge, get_nested_value, set_nested_value
 from .changes import ChangeTracker, ConfigChange, emit_change_events
 
 if TYPE_CHECKING:
-    from ..core.wrapper import NekoConfigManager
+    from ..core.config import NekoConf
 
 
 class TransactionManager:
     """Manages a set of configuration changes as a single transaction."""
 
-    def __init__(self, config: "NekoConfigManager"):
+    def __init__(self, config: "NekoConf"):
         """Initialize a transaction manager.
 
         Args:
-            config_manager: The NekoConfigManager instance
+            config_manager: The NekoConf instance
         """
         self.config = config
         self.old_data = self.config.data
@@ -102,7 +102,6 @@ class TransactionManager:
         self.config.data = self.transaction_data
 
         if not self.config.event_disabled:
-            # Emit events for all changes
             emit_change_events(self.config, changes)
 
         return changes
