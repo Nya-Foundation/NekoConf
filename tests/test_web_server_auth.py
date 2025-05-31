@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, mock_open, patch
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
-from starlette.responses import JSONResponse, HTMLResponse
+from starlette.responses import HTMLResponse, JSONResponse
 
 from nekoconf.server.auth import AuthMiddleware, NekoAuthGuard
 
