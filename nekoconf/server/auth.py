@@ -11,7 +11,6 @@ from fastapi.security import APIKeyHeader
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse, RedirectResponse
 
-
 from nekoconf.utils.helper import getLogger
 
 
