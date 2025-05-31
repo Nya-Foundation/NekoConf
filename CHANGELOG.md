@@ -1,6 +1,22 @@
 # CHANGELOG
 
 
+## v1.1.1 (2025-05-31)
+
+### Bug Fixes
+
+- Minor fix on login.html serving logic, refine import dependencies for remote
+  ([`e81cc66`](https://github.com/Nya-Foundation/NekoConf/commit/e81cc66121310517aaaefee477d40731bd65fa8b))
+
+### Chores
+
+- Black code format
+  ([`6d3088e`](https://github.com/Nya-Foundation/NekoConf/commit/6d3088e550ca182523c6cd4b17bbdb624ae2c5a9))
+
+- Update test cases
+  ([`60e4b9c`](https://github.com/Nya-Foundation/NekoConf/commit/60e4b9c3871907bb7a6925202e2599a7ed45bea0))
+
+
 ## v1.1.0 (2025-05-31)
 
 ### Chores
