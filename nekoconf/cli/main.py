@@ -49,6 +49,7 @@ def create_parser() -> argparse.ArgumentParser:
     server.add_argument("--config", "-c", help="Configuration file path")
     server.add_argument("--schema", help="Schema file path")
     server.add_argument("--api-key", help="API key for authentication")
+    server.add_argument("--app-name", help="Application name for config server")
     server.add_argument(
         "--event",
         type=str2bool,
@@ -170,6 +171,8 @@ def cmd_server(args: argparse.Namespace) -> int:
         return 1
 
     apps = {}
+    config: Optional[NekoConf] = None
+    app_name = args.app_name or "default"
     if args.config:
         config = create_config(
             args.config,
@@ -178,8 +181,8 @@ def cmd_server(args: argparse.Namespace) -> int:
             read_only=args.read_only,
             event=args.event,
         )
-        apps["default"] = config
 
+    apps[app_name] = config
     orchestrator = NekoConfOrchestrator(
         apps=apps, api_key=args.api_key, read_only=args.read_only, logger=LOGGER
     )

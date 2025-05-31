@@ -391,7 +391,7 @@
           await new Promise((resolve) => setTimeout(resolve, 800));
 
           // Set the API key as a cookie with path=/
-          document.cookie = `nekoconf_api_key=${apiKey}; path=/; max-age=3600; SameSite=Strict`;
+          document.cookie = `nekoconf_api_key=${apiKey}; path=/; max-age=7200; SameSite=Strict`;
 
           // Redirect back to the original path
           window.location.href = "{{ return_path }}";
