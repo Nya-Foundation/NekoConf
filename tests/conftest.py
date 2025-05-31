@@ -8,10 +8,9 @@ from typing import Any, Dict, Optional
 import pytest
 from fastapi.testclient import TestClient
 
-from nekoconf.core.config import NekoConfigManager
-from nekoconf.core.wrapper import NekoConfigWrapper
+from nekoconf.core.config import NekoConf
 from nekoconf.schema import NekoSchemaValidator
-from nekoconf.server.app import NekoConfigServer
+from nekoconf.server.app import NekoConfOrchestrator
 from tests.test_helpers import ConfigTestHelper
 
 # Configure pytest to handle async by default
@@ -224,7 +223,7 @@ def config_manager(test_config_file, sample_config):
     """Create a NekoConfig instance for testing."""
 
     # Initialize the config manager with the test file
-    config = NekoConfigManager(config_path=test_config_file)
+    config = NekoConf(test_config_file)
     config.update(sample_config)
     config.save()
 
@@ -234,7 +233,7 @@ def config_manager(test_config_file, sample_config):
 @pytest.fixture
 def config_manager_with_schema(config_file, schema_file):
     """Create a NekoConfig instance with schema for testing."""
-    manager = NekoConfigManager(config_file, schema_file)
+    manager = NekoConf(config_file, schema_file)
     manager.load()
     return manager
 
@@ -246,15 +245,15 @@ def validator(sample_schema) -> NekoSchemaValidator:
 
 
 @pytest.fixture
-def web_server(config_manager) -> NekoConfigServer:
+def web_server(config_manager) -> NekoConfOrchestrator:
     """Create a NekoConf instance for testing."""
-    return NekoConfigServer(config_manager)
+    return NekoConfOrchestrator(config_manager)
 
 
 @pytest.fixture
-def web_server_with_auth(config_manager) -> NekoConfigServer:
+def web_server_with_auth(config_manager) -> NekoConfOrchestrator:
     """Create a NekoConf instance with authentication for testing."""
-    return NekoConfigServer(config_manager, api_key="test-api-key")
+    return NekoConfOrchestrator(config_manager, api_key="test-api-key")
 
 
 @pytest.fixture
@@ -279,15 +278,15 @@ def test_client_with_auth(web_server_with_auth) -> TestClient:
 
 
 @pytest.fixture
-def config_api(config_file) -> NekoConfigWrapper:
-    """Create a NekoConfigWrapper instance for testing."""
-    return NekoConfigWrapper(config_file)
+def config_api(config_file) -> NekoConf:
+    """Create a NekoConf instance for testing."""
+    return NekoConf(config_file)
 
 
 @pytest.fixture
-def config_api_with_schema(config_file, schema_file) -> NekoConfigWrapper:
-    """Create a NekoConfigWrapper instance with schema for testing."""
-    return NekoConfigWrapper(config_file, schema_file)
+def config_api_with_schema(config_file, schema_file) -> NekoConf:
+    """Create a NekoConf instance with schema for testing."""
+    return NekoConf(config_file, schema_file)
 
 
 @pytest.fixture

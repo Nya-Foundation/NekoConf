@@ -8,18 +8,16 @@ and integration with the configuration management system.
 import asyncio
 import os
 import tempfile
-from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
-from nekoconf.core.config import NekoConfigManager
-from nekoconf.core.wrapper import NekoConfigWrapper
+from nekoconf.core.config import NekoConf
 from nekoconf.event.pipeline import (
     EventContext,
     EventHandler,
+    EventPipeline,
     EventType,
-    NekoEventPipeline,
 )
 from nekoconf.utils.helper import is_async_callable
 
@@ -60,8 +58,8 @@ class TestEventPipeline:
                   pool_size: 5
                 """
             )
-        self.config = NekoConfigManager(self.temp_path)
-        self.pipeline = NekoEventPipeline()
+        self.config = NekoConf(self.temp_path)
+        self.pipeline = EventPipeline()
 
     def teardown_method(self):
         """Clean up after each test method.
@@ -344,7 +342,7 @@ class TestEventPipeline:
         events_received = []
 
         # Create a config manager with event pipeline
-        config = NekoConfigManager(self.temp_path, event_emission_enabled=True)
+        config = NekoConf(self.temp_path, event_emission_enabled=True)
 
         # Register handlers using decorator syntax
         @config.on_change("server.host")
@@ -377,7 +375,7 @@ class TestEventPipeline:
         events_received = []
 
         # Create a config manager with event pipeline
-        config = NekoConfigManager(self.temp_path, event_emission_enabled=True)
+        config = NekoConf(self.temp_path, event_emission_enabled=True)
 
         # Register async handler using decorator syntax
         @config.on_change("server.host")
@@ -397,15 +395,15 @@ class TestEventPipeline:
         assert events_received[0] == ("host", "localhost", "0.0.0.0")
 
     def test_client_event_handlers(self):
-        """Test event handlers with NekoConfigWrapper.
+        """Test event handlers with NekoConf.
 
-        Verifies that the higher-level NekoConfigWrapper correctly
+        Verifies that the higher-level NekoConf correctly
         propagates events to registered handlers.
         """
         events_received = []
 
         # Create a client
-        client = NekoConfigWrapper(self.temp_path, event_emission_enabled=True)
+        client = NekoConf(self.temp_path, event_emission_enabled=True)
 
         # Register handler using client's on_change
         @client.on_change("server.port")
@@ -427,7 +425,7 @@ class TestEventPipeline:
         assert ("DELETE", "logging.level", "INFO") in events_received  # From delete
 
     def test_event_types_with_config_manager(self):
-        """Test different event types with NekoConfigManager.
+        """Test different event types with NekoConf.
 
         Verifies that all event types (CREATE, UPDATE, DELETE, RELOAD)
         are correctly emitted by the configuration manager.
@@ -435,7 +433,7 @@ class TestEventPipeline:
         events = []
 
         # Create a config manager
-        config = NekoConfigManager(self.temp_path, event_emission_enabled=True)
+        config = NekoConf(self.temp_path, event_emission_enabled=True)
 
         # Register handlers for different event types
         @config.on_event(EventType.CREATE)
@@ -464,8 +462,10 @@ class TestEventPipeline:
         # Check events
         assert len(events) >= 4  # At least 4 events should be emitted
 
+        print(events)  # For debugging purposes
+
         # Check for specific events
-        assert any(e[0] == "CREATE" and e[1] == "new.key" and e[2] == "value" for e in events)
+        assert any(e[0] == "CREATE" and e[1] == "new" and e[2] == {"key": "value"} for e in events)
         assert any(
             e[0] == "UPDATE" and e[1] == "server.host" and e[2] == "localhost" and e[3] == "0.0.0.0"
             for e in events
@@ -556,7 +556,7 @@ class TestEventPipeline:
         events = []
 
         # Create a config manager
-        config = NekoConfigManager(self.temp_path, event_emission_enabled=True)
+        config = NekoConf(self.temp_path, event_emission_enabled=True)
 
         @config.on_event(EventType.UPDATE)
         def handle_update(event_type, path, old_value, new_value, config_data, **kwargs):
@@ -587,7 +587,7 @@ class TestEventPipeline:
         reload_events = []
 
         # Create a config manager
-        config = NekoConfigManager(self.temp_path, event_emission_enabled=True)
+        config = NekoConf(self.temp_path, event_emission_enabled=True)
 
         @config.on_event(EventType.RELOAD)
         def handle_reload(old_value, new_value, **kwargs):

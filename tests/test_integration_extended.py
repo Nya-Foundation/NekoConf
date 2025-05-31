@@ -7,8 +7,7 @@ import tempfile
 
 import pytest
 
-from nekoconf.core.config import NekoConfigManager
-from nekoconf.core.wrapper import NekoConfigWrapper
+from nekoconf.core.config import NekoConf
 from nekoconf.event.pipeline import EventType
 
 # Skip tests if tomli/tomli_w packages are not available
@@ -59,16 +58,16 @@ class TestIntegration:
         }
 
         # Create configs in different formats
-        yaml_config = NekoConfigManager(self.yaml_path)
+        yaml_config = NekoConf(self.yaml_path)
         yaml_config.data = config.copy()
         yaml_config.save()
 
-        json_config = NekoConfigManager(self.json_path)
+        json_config = NekoConf(self.json_path)
         json_config.data = config.copy()
         json_config.save()
 
         if has_toml:
-            toml_config = NekoConfigManager(self.toml_path)
+            toml_config = NekoConf(self.toml_path)
             toml_config.data = config.copy()
             toml_config.save()
 
@@ -78,7 +77,7 @@ class TestIntegration:
         reconnects = 0
 
         # Create configuration client
-        client = NekoConfigWrapper(self.yaml_path, event_emission_enabled=True)
+        client = NekoConf(self.yaml_path, event_emission_enabled=True)
 
         # Register handlers for database connection changes
         @client.on_change("database.url")
@@ -110,7 +109,7 @@ class TestIntegration:
         log_config_changes = []
 
         # Create configuration client
-        client = NekoConfigWrapper(self.json_path, event_emission_enabled=True)
+        client = NekoConf(self.json_path, event_emission_enabled=True)
 
         # Register a handler for all logging changes
         @client.on_event(EventType.CHANGE, "logging.*")
@@ -135,7 +134,7 @@ class TestIntegration:
         disabled_features = set()
 
         # Create configuration client with TOML
-        client = NekoConfigWrapper(self.toml_path, event_emission_enabled=True)
+        client = NekoConf(self.toml_path, event_emission_enabled=True)
 
         # Add some feature flags
         client.set("features.enable_cache", True)
@@ -174,9 +173,9 @@ class TestIntegration:
         server_updates = {"yaml": 0, "json": 0, "toml": 0}
 
         # Create clients for each format
-        yaml_client = NekoConfigWrapper(self.yaml_path, event_emission_enabled=True)
-        json_client = NekoConfigWrapper(self.json_path, event_emission_enabled=True)
-        toml_client = NekoConfigWrapper(self.toml_path, event_emission_enabled=True)
+        yaml_client = NekoConf(self.yaml_path, event_emission_enabled=True)
+        json_client = NekoConf(self.json_path, event_emission_enabled=True)
+        toml_client = NekoConf(self.toml_path, event_emission_enabled=True)
 
         # Register similar handlers for each
         @yaml_client.on_change("server.host")
@@ -210,7 +209,7 @@ class TestIntegration:
         async_event_order = []
 
         # Create configuration manager
-        config = NekoConfigManager(self.toml_path, event_emission_enabled=True)
+        config = NekoConf(self.toml_path, event_emission_enabled=True)
 
         # Register async handlers with different priorities
         @config.on_change("server.host")
@@ -245,10 +244,10 @@ class TestIntegration:
         bulk_events = []
 
         # Create configuration client
-        client = NekoConfigWrapper(self.yaml_path, event_emission_enabled=True)
+        client = NekoConf(self.yaml_path, event_emission_enabled=True)
 
         # Clear any existing handlers to avoid test interference
-        client.config.event_pipeline.handlers = []
+        client.event_pipeline.handlers = []
 
         # Register a fresh handler for any change
         @client.on_event(EventType.CHANGE, "@global")
@@ -257,7 +256,7 @@ class TestIntegration:
             bulk_events.append("bulk_change")
 
         # Perform a bulk update - explicitly skip the save() to avoid double events
-        client.config.update({"server": {"host": "updated-host", "port": 9000}})
+        client.update({"server": {"host": "updated-host", "port": 9000}})
 
         # Check results - should have exactly 1 event from the bulk update
         assert len(bulk_events) == 1, f"Expected 1 bulk event but got {len(bulk_events)}"

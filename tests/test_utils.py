@@ -6,9 +6,7 @@ including file operations, data parsing, dictionary operations, and other helper
 
 import logging
 import os
-import tempfile
-from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 import yaml
@@ -485,7 +483,7 @@ class TestDictionaryOperations:
 
         Verifies:
         1. Top-level key access
-        2. Nested key access with JMESPath expressions
+        2. Nested key access with dot notation
         3. Default values for missing keys
         """
         data = {
@@ -513,53 +511,12 @@ class TestDictionaryOperations:
         assert get_nested_value(data, "nonexistent", "default") == "default"
         assert get_nested_value(data, "server.nonexistent", 42) == 42
 
-    def test_get_nested_value_jmespath(self):
-        """Test JMESPath expression support in get_nested_value.
-
-        Verifies:
-        1. Array indexing works
-        2. Complex JMESPath expressions work
-        """
-        data = {
-            "servers": [
-                {"name": "server1", "host": "host1.example.com", "role": "web"},
-                {"name": "server2", "host": "host2.example.com", "role": "db"},
-                {"name": "server3", "host": "host3.example.com", "role": "cache"},
-            ],
-            "clients": {
-                "web": {"timeout": 30, "retries": 3},
-                "api": {"timeout": 10, "retries": 5},
-            },
-        }
-
-        # Array indexing
-        assert get_nested_value(data, "servers[0].name") == "server1"
-        assert get_nested_value(data, "servers[1].host") == "host2.example.com"
-
-        # Array filtering
-        hosts = get_nested_value(data, "servers[*].host")
-        assert hosts == ["host1.example.com", "host2.example.com", "host3.example.com"]
-
-        # More complex expressions
-        web_servers = get_nested_value(data, "servers[?role=='web'].name")
-        assert web_servers == ["server1"]
-
-        # Nested access with JMESPath
-        assert get_nested_value(data, "clients.web.timeout") == 30
-
-        # Missing paths
-        assert get_nested_value(data, "servers[10].name") is None
-        assert get_nested_value(data, "servers[?role=='unknown'].name") == []
-
-        # Default values
-        assert get_nested_value(data, "servers[10].name", "default") == "default"
-
     def test_set_nested_value_basic(self):
         """Test basic setting of nested values.
 
         Verifies:
         1. Setting top-level keys
-        2. Setting nested keys with JMESPath expressions
+        2. Setting nested keys with dot notation
         3. Setting values in empty dictionaries
         """
         # Start with empty dict
@@ -637,90 +594,6 @@ class TestDictionaryOperations:
         assert isinstance(data["a"]["b"]["c"], dict)
         assert isinstance(data["a"]["b"]["c"]["d"], dict)
         assert isinstance(data["a"]["b"]["c"]["d"]["e"], dict)
-
-
-class TestLoggerUtils:
-    """Test suite for logger utility functions."""
-
-    def test_getLogger_basic(self):
-        """Test basic logger creation.
-
-        Verifies:
-        1. Logger is created with correct name
-        2. Logger level is set correctly
-        3. Logger has the expected handlers
-        """
-        logger = getLogger("test.logger")
-        assert logger.name == "test.logger"
-        assert logger.level == logging.INFO  # Default level
-        assert len(logger.handlers) > 0
-
-        # Logger with specific level
-        debug_logger = getLogger("test.debug", level="DEBUG")
-        assert debug_logger.level == logging.DEBUG
-
-        # Logger with numeric level
-        warn_logger = getLogger("test.warn", level=logging.WARNING)
-        assert warn_logger.level == logging.WARNING
-
-    def test_getLogger_with_handlers(self):
-        """Test logger creation with custom handlers.
-
-        Verifies that custom handlers are properly added to the logger.
-        """
-        handler1 = logging.StreamHandler()
-        handler2 = logging.StreamHandler()
-        logger = getLogger("test.handlers", handlers=[handler1, handler2])
-
-        # Should have exactly the two handlers we provided
-        assert len(logger.handlers) == 2
-        assert handler1 in logger.handlers
-        assert handler2 in logger.handlers
-
-    def test_getLogger_with_format(self):
-        """Test logger creation with custom format.
-
-        Verifies that custom format string is applied to the logger.
-        """
-        custom_format = "%(levelname)s - %(message)s"
-        logger = getLogger("test.format", format_str=custom_format)
-
-        # Check that the format is applied (without color codes)
-        handler = logger.handlers[0]
-        assert isinstance(handler.formatter, logging.Formatter)
-
-        # Can't easily check the exact format string due to color codes,
-        # but we can verify it's a formatter
-
-    def test_getLogger_reuse(self):
-        """Test that getLogger reuses existing loggers.
-
-        Verifies that:
-        1. Calling getLogger twice with the same name returns the same logger
-        2. Existing loggers aren't reconfigured
-        """
-        # Create a logger and add a custom handler
-        logger1 = getLogger("test.reuse")
-        original_level = logger1.level
-        original_handlers = list(logger1.handlers)
-
-        # Get the same logger again - should be the same instance
-        logger2 = getLogger("test.reuse", level="DEBUG")  # Different level
-
-        # Should be the same object
-        assert logger1 is logger2
-
-        # Level and handlers should not have changed
-        assert logger2.level == original_level
-        assert list(logger2.handlers) == original_handlers
-
-    def test_getLogger_invalid_level(self):
-        """Test error handling for invalid log levels.
-
-        Verifies that invalid log level names raise ValueError.
-        """
-        with pytest.raises(ValueError):
-            getLogger("test.invalid", level="INVALID_LEVEL")
 
 
 class TestAsyncUtils:

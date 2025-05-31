@@ -73,7 +73,7 @@ pip install nekoconf[all]
 
 | Feature                | Extra          | Dependencies                                        | Purpose                                                   |
 |------------------------|----------------|----------------------------------------------------|------------------------------------------------------------|
-| **Core**               | (none)         | pyyaml, filelock, jmespath, etc.                    | Basic configuration operations                             |
+| **Core**               | (none)         | pyyaml, colorlog, tomli, tomli-w                    | Basic configuration operations                             |
 | **Web Server/API**     | `server`       | fastapi, uvicorn, jinja2, etc.                     | Run a web server to manage configuration                  |
 | **Schema Validation**  | `schema`       | jsonschema, rfc3987                                | Validate configuration against JSON Schema                |
 | **Remote Config**      | `remote`       | requests, websocket-client                         | Connect to a remote NekoConf server                       |
@@ -83,10 +83,10 @@ pip install nekoconf[all]
 ## 🚀 Quick Start
 
 ```python
-from nekoconf import NekoConfigManager
+from nekoconf import NekoConf
 
 # Initialize with configuration file path (creates file if it doesn't exist)
-config = NekoConfigManager("config.yaml", event_emission_enabled=True)
+config = NekoConf("config.yaml", event_emission_enabled=True)
 
 # Get configuration values (supports nested keys with dot notation)
 db_host = config.get("database.host", default="localhost")
@@ -111,11 +111,11 @@ def handle_db_change(path, old_value, new_value, **kwargs):
 
 ### 🔄 Configuration Management
 
-Load, access, and modify configuration data using JMESPath expressions.
+Load, access, and modify configuration data using dot notation expressions.
 
 ```python
 # Load configuration from file (happens automatically on initialization)
-config = NekoConfigWrapper("config.yaml")
+config = NekoConf("config.yaml")
 
 # Access values with type conversion
 host = config.get("database.host")
@@ -148,7 +148,7 @@ export NEKOCONF_FEATURES_ENABLED=true
 
 ```python
 # These values will reflect environment variables automatically
-config = NekoConfigWrapper("config.yaml")
+config = NekoConf("config.yaml")
 print(config.get("database.host"))  # "production-db.example.com" 
 print(config.get_int("database.port"))  # 5433
 print(config.get_bool("features.enabled"))  # True
@@ -157,7 +157,7 @@ print(config.get_bool("features.enabled"))  # True
 You can customize the environment variable prefix and delimiter:
 
 ```python
-config = NekoConfigManager(
+config = NekoConf(
     "config.yaml",
     env_prefix="MYAPP",
     env_nested_delimiter="_"
@@ -174,9 +174,9 @@ The above would map `database.host` to `MYAPP_DATABASE_HOST`.
 React to configuration changes in real-time:
 
 ```python
-from nekoconf import NekoConfigManager, EventType
+from nekoconf import NekoConf, EventType
 
-config = NekoConfigManager("config.yaml", event_emission_enabled=True)
+config = NekoConf("config.yaml", event_emission_enabled=True)
 
 # React to any change to database configuration
 @config.on_change("database.*")
@@ -206,7 +206,7 @@ Connect to a remote NekoConf server for centralized configuration (requires `nek
 
 ```python
 # Connect to a remote NekoConf server
-config = NekoConfigManager(
+config = NekoConf(
     remote_url="https://config-server.example.com",
     remote_api_key="secure-key",
     remote_read_only=True,  # Only read from server, don't push changes back
@@ -228,7 +228,7 @@ You can also combine remote configuration with local files:
 
 ```python
 # Use remote configuration with local backup file
-config = NekoConfigManager(
+config = NekoConf(
     config_path="local-backup.yaml",  # Local backup file
     remote_url="https://config-server.example.com",
     remote_api_key="secure-key",
@@ -266,7 +266,7 @@ Ensure configuration integrity using JSON Schema (requires `nekoconf[schema]`):
 
 ```python
 # Initialize with schema
-config = NekoConfigManager("config.yaml", schema_path="schema.json")
+config = NekoConf("config.yaml", schema_path="schema.json")
 
 # Validate configuration
 errors = config.validate()
@@ -285,10 +285,10 @@ print(errors)  # Shows validation error
 NekoConf includes a web server built with FastAPI to manage configuration remotely (requires `nekoconf[server]`):
 
 ```python
-from nekoconf import NekoConfigManager, NekoConfigServer
+from nekoconf import NekoConf, NekoConfOrchestrator
 
-config = NekoConfigManager("config.yaml")
-server = NekoConfigServer(config, api_key="secure-key")
+config = NekoConf("config.yaml")
+server = NekoConfOrchestrator(config, api_key="secure-key")
 server.run(host="0.0.0.0", port=8000)
 ```
 
@@ -366,10 +366,10 @@ See the [CLI Reference](docs/cli-reference.md) for all available commands and op
 
 ```python
 from flask import Flask
-from nekoconf import NekoConfigManager
+from nekoconf import NekoConf
 
 app = Flask(__name__)
-config_manager = NekoConfigManager("flask_app_config.yaml", event_emission_enabled=True)
+config_manager = NekoConf("flask_app_config.yaml", event_emission_enabled=True)
 
 # Use configuration values to configure Flask
 app.config["DEBUG"] = config_manager.get_bool("app.debug", default=False)
@@ -393,9 +393,9 @@ def index():
 
 ```python
 from fastapi import FastAPI, Depends
-from nekoconf import NekoConfigManager
+from nekoconf import NekoConf
 
-config_manager = NekoConfigManager("fastapi_config.yaml", event_emission_enabled=True)
+config_manager = NekoConf("fastapi_config.yaml", event_emission_enabled=True)
 app = FastAPI(title=config_manager.get("api.title", "My API"))
 
 # Dependency to access configuration
@@ -403,7 +403,7 @@ def get_config():
     return config_manager
 
 @app.get("/")
-def read_root(config: NekoConfigManager = Depends(get_config)):
+def read_root(config: NekoConf = Depends(get_config)):
     return {"version": config.get("api.version", "1.0")}
 
 # React to configuration changes
@@ -418,10 +418,10 @@ async def update_rate_limits(path, new_value, **kwargs):
 ```python
 # settings.py
 from pathlib import Path
-from nekoconf import NekoConfigManager
+from nekoconf import NekoConf
 
 # Initialize configuration
-config_manager = NekoConfigManager("django_settings.yaml")
+config_manager = NekoConf("django_settings.yaml")
 
 # Use configuration values in Django settings
 DEBUG = config_manager.get_bool("django.debug", default=False)
@@ -446,10 +446,10 @@ DATABASES = {
 
 ```python
 # In your microservice
-from nekoconf import NekoConfigWrapper
+from nekoconf import NekoConf
 
 # Connect to the central configuration server
-config = NekoConfigWrapper(
+config = NekoConf(
     remote_url="http://config-service:8000",
     remote_api_key="service-specific-key",
     in_memory=True,  # No local file needed

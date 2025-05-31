@@ -20,7 +20,7 @@ class EventContext:
 
         Args:
             event_type: The type of event that occurred
-            path: The configuration path that changed (JMESPath expressions)
+            path: The configuration path that changed (enhanced dot notation)
             old_value: The previous value (if applicable)
             new_value: The new value (if applicable)
             config_data: The complete configuration data
@@ -48,7 +48,7 @@ class EventHandler:
         Args:
             callback: Function to call when event occurs
             event_types: Types of events this handler responds to
-            path_pattern: Optional path pattern to filter events (JMESPath expressions)
+            path_pattern: Optional path pattern to filter events (enhanced dot notation)
             priority: Handler priority (lower number = higher priority)
             **kwargs: Additional keyword arguments to pass to callback
         """
@@ -96,7 +96,7 @@ class EventHandler:
             return False
 
         try:
-            # Use PathMatcher for path matching with JMESPath
+            # Use PathMatcher for path matching with enhanced dot notation
             return PathMatcher.match(self.path_pattern, context.path)
         except Exception as e:
             # Log but don't fail, just consider it a non-match
@@ -160,22 +160,15 @@ class EventHandler:
         try:
             if self.is_async:
                 # For async callbacks in sync context, we create a new event loop if needed
-                try:
-                    import asyncio
+                import asyncio
 
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        # If we're already in a running event loop, schedule the task
-                        asyncio.create_task(self.callback(**kwargs))
-                    else:
-                        # If no loop is running, run in a new event loop
-                        asyncio.run(self.callback(**kwargs))
+                try:
+                    loop = asyncio.get_running_loop()
+                    # If we're already in a running event loop, schedule the task
+                    asyncio.create_task(self.callback(**kwargs))
                 except RuntimeError:
                     # Handle case when there's no event loop
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    loop.run_until_complete(self.callback(**kwargs))
-                    loop.close()
+                    asyncio.run(self.callback(**kwargs))
             else:
                 # For sync callbacks, just call directly
                 self.callback(**kwargs)

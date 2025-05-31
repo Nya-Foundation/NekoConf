@@ -17,7 +17,7 @@ nekoconf server --api-key mysecretkey
 Or in code:
 
 ```python
-server = NekoConfigServer(config, api_key="mysecretkey")
+server = NekoConfOrchestrator(config, api_key="mysecretkey")
 ```
 
 ## Best Practices

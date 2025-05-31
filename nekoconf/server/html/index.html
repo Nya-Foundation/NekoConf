@@ -1,240 +1,624 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" x-data="dashboardApp()" :data-theme="darkMode ? 'dark' : 'light'">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="NekoConf - A cute configuration manager for your JSON and YAML configuration files"
-    />
-    <meta name="theme-color" content="#ff6b8b" />
-    <title>NekoConf - Neko Configuration Manager</title>
+    <meta name="description" content="NekoConf - Modern configuration management dashboard" />
+    <meta name="theme-color" content="#0ea5e9" />
+    <title>NekoConf - Configuration Dashboard</title>
+
+    <!-- Preload critical resources -->
+    <link rel="preload" href="{{ root_path }}/static/css/nekoconf.css" as="style" />
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" as="style" />
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="icon" href="{{ request.scope.root_path }}/favicon.ico" />
-    <link
-      rel="stylesheet"
-      href="{{ request.scope.root_path }}/static/styles.css"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+    <!-- Consolidated CSS -->
+    <link rel="stylesheet" href="{{ root_path }}/static/css/nekoconf.css" />
+
+    <!-- TailwindCSS for utility classes -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Configure Tailwind to work with our design system
+      tailwind.config = {
+        darkMode: ["selector", '[data-theme="dark"]'],
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "system-ui", "sans-serif"],
+              mono: ["JetBrains Mono", "Monaco", "Consolas", "monospace"],
+            },
+          },
+        },
+      };
+    </script>
+
+    <!-- Alpine.js -->
+    <script src="//unpkg.com/alpinejs" defer></script>
+
+    <!-- Favicon -->
+    <link rel="icon" href="{{ root_path }}/favicon.ico" />
   </head>
-  <body>
-    <div class="container">
-      <header class="app-header">
-        <h1 class="app-title">
-          <img
-            class="app-logo"
-            src="{{ request.scope.root_path }}/static/logo.svg"
-            width="40"
-            height="40"
-          />
-          NekoConf
-        </h1>
 
-        <div class="app-controls">
-          <button
-            id="theme-toggle"
-            class="theme-toggle"
-            aria-label="Toggle theme"
-          >
-            <svg id="moon-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M12 3c.3 0 .6 0 .9 0a9 9 0 1 0 9 9c0-.3 0-.6 0-.9a6 6 0 0 1-9-9z"
-              />
-            </svg>
-            <svg id="sun-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="4" />
-              <path
-                d="M12 2v2m0 16v2M4 12H2m20 0h-2m-2.8-7.2l-1.4 1.4M6.2 17.8l-1.4 1.4m14.4 0l-1.4-1.4M6.2 6.2l-1.4-1.4"
-              />
-            </svg>
-          </button>
-        </div>
-      </header>
-
-      <nav class="editor-tabs" role="tablist" aria-label="Editor views">
-        <button
-          class="tab-button active"
-          id="visual-tab"
-          data-target="visual"
-          role="tab"
-          aria-selected="true"
-          aria-controls="visual"
-        >
-          <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
-            <path
-              d="M10 2c-4.4 0-8 3.6-8 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm0 14c-3.3 0-6-2.7-6-6s2.7-6 6-6 6 2.7 6 6-2.7 6-6 6z"
-              fill="currentColor"
-            />
-            <circle cx="10" cy="10" r="3" fill="currentColor" />
-          </svg>
-          Visual Editor
-        </button>
-        <button
-          class="tab-button"
-          id="json-tab"
-          data-target="json"
-          role="tab"
-          aria-selected="false"
-          aria-controls="json"
-        >
-          <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
-            <path
-              d="M16 8c0-1.1-.9-2-2-2H6c-1.1 0-2 .9-2 2v4c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V8zm-2 4H6V8h8v4z"
-              fill="currentColor"
-            />
-            <path d="M2 4v12h16V4H2zm14 10H4V6h12v8z" fill="currentColor" />
-          </svg>
-          JSON
-        </button>
-        <button
-          class="tab-button"
-          id="yaml-tab"
-          data-target="yaml"
-          role="tab"
-          aria-selected="false"
-          aria-controls="yaml"
-        >
-          <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
-            <path d="M2 4v12h16V4H2zm14 10H4V6h12v8z" fill="currentColor" />
-            <path d="M5 8h10v1H5zm0 3h10v1H5z" fill="currentColor" />
-          </svg>
-          YAML
-        </button>
-      </nav>
-
-      <main class="tab-content">
-        <div class="tab-pane-loader" hidden aria-hidden="true">
-          <div class="loader" aria-label="Loading"></div>
-        </div>
-
-        <section
-          class="tab-pane active"
-          id="visual"
-          role="tabpanel"
-          aria-labelledby="visual-tab"
-        >
-          <div class="editor-container" id="visual-editor"></div>
-        </section>
-
-        <section
-          class="tab-pane"
-          id="json"
-          role="tabpanel"
-          aria-labelledby="json-tab"
-        >
-          <div class="editor-container">
-            <div id="json-editor" class="code-editor"></div>
+  <body class="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 font-sans antialiased flex flex-col">
+    <!-- Navigation -->
+    <nav class="glass-morphism sticky top-0 z-30 border-b border-gray-200/50 dark:border-gray-800/50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <!-- Logo & Brand -->
+          <div class="flex items-center space-x-4">
+            <div class="relative">
+              <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-accent-500 rounded-xl flex items-center justify-center shadow-lg animate-float">
+                <span class="text-white text-lg font-bold">🐱</span>
+              </div>
+            </div>
+            <div>
+              <h1 class="text-xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">NekoConf</h1>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Configuration Management</p>
+            </div>
           </div>
-        </section>
 
-        <section
-          class="tab-pane"
-          id="yaml"
-          role="tabpanel"
-          aria-labelledby="yaml-tab"
-        >
-          <div class="editor-container">
-            <div id="yaml-editor" class="code-editor"></div>
+          <!-- Desktop Navigation -->
+          <div class="hidden md:flex items-center space-x-4">
+            <!-- Search -->
+            <div class="relative">
+              <input x-model="searchQuery" @input="filterApps()" type="text" placeholder="Search apps... (Ctrl+K)" class="form-input w-64 pl-10 pr-4 py-2" />
+              <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+              </div>
+              <button x-show="searchQuery" @click="searchQuery = ''; filterApps()" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Theme Toggle -->
+            <button @click="toggleTheme()" class="btn btn-ghost btn-icon" :title="darkMode ? 'Switch to light mode' : 'Switch to dark mode'">
+              <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+              </svg>
+              <svg x-show="darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                ></path>
+              </svg>
+            </button>
+
+            <!-- Settings Dropdown -->
+            <div class="relative" x-data="{ open: false }">
+              <button @click="open = !open" class="btn btn-ghost btn-icon" title="Settings">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"></path>
+                </svg>
+              </button>
+
+              <!-- Dropdown Menu -->
+              <div
+                x-show="open"
+                x-cloak
+                @click.away="open = false"
+                x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="opacity-0 scale-95"
+                x-transition:enter-end="opacity-100 scale-100"
+                x-transition:leave="transition ease-in duration-150"
+                x-transition:leave-start="opacity-100 scale-100"
+                x-transition:leave-end="opacity-0 scale-95"
+                class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50"
+              >
+                <button @click="exportAllConfigs(); open = false" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150">
+                  <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                  </svg>
+                  Export All
+                </button>
+                <button @click="refreshApps(); open = false" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150">
+                  <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                  </svg>
+                  Refresh
+                </button>
+              </div>
+            </div>
           </div>
-        </section>
-      </main>
 
-      <div class="actions-bar">
-        <div class="left-actions">
-          <button
-            id="export-btn"
-            class="btn btn-secondary"
-            aria-label="Export configuration"
-            title="Export configuration to file (Ctrl+E)"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="7 10 12 15 17 10"></polyline>
-              <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-            Export
-          </button>
-          <button
-            id="import-btn"
-            class="btn btn-secondary"
-            aria-label="Import configuration"
-            title="Import configuration from file (Ctrl+I)"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="17 8 12 3 7 8"></polyline>
-              <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-            Import
-          </button>
-          <button
-            id="reload-btn"
-            class="btn btn-secondary"
-            aria-label="Reload configuration from disk"
-            title="Reload configuration from disk (Ctrl+R)"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M23 4v6h-6"></path>
-              <path d="M1 20v-6h6"></path>
-              <path
-                d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
-              ></path>
-            </svg>
-            Reload
-          </button>
-          <button
-            id="validate-btn"
-            class="btn btn-secondary"
-            aria-label="Validate configuration"
-            title="Validate configuration (Ctrl+V)"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M9 11l3 3L22 4"></path>
-              <path
-                d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
-              ></path>
-            </svg>
-            Validate
-          </button>
+          <!-- Mobile menu button -->
+          <div class="md:hidden flex items-center space-x-2">
+            <button @click="showMobileSearch = !showMobileSearch" class="btn btn-ghost btn-icon">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+            </button>
+            <button @click="toggleTheme()" class="btn btn-ghost btn-icon">
+              <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+              </svg>
+              <svg x-show="darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                ></path>
+              </svg>
+            </button>
+          </div>
         </div>
-        <button
-          id="save-btn"
-          class="btn btn-primary"
-          aria-label="Save configuration changes"
-          title="Save configuration changes (Ctrl+S)"
+
+        <!-- Mobile Search Overlay -->
+        <div
+          x-show="showMobileSearch"
+          x-cloak
+          x-transition:enter="transition ease-out duration-200"
+          x-transition:enter-start="opacity-0 transform -translate-y-2"
+          x-transition:enter-end="opacity-100 transform translate-y-0"
+          x-transition:leave="transition ease-in duration-150"
+          x-transition:leave-start="opacity-100 transform translate-y-0"
+          x-transition:leave-end="opacity-0 transform -translate-y-2"
+          class="md:hidden py-4 border-t border-gray-200 dark:border-gray-800"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
-            ></path>
-            <polyline points="17 21 17 13 7 13 7 21"></polyline>
-            <polyline points="7 3 7 8 15 8"></polyline>
-          </svg>
-          Save Changes
-        </button>
+          <div class="relative">
+            <input x-model="searchQuery" @input="filterApps()" type="text" placeholder="Search apps..." class="form-input w-full pl-10 pr-4 py-2" x-ref="mobileSearch" />
+            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
       </div>
+    </nav>
 
-      <div id="notification-container" role="alert" aria-live="polite"></div>
+    <!-- Main Content -->
+    <main class="flex-1">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Hero Section -->
+        <div class="text-center mb-12">
+          <div class="relative">
+            <h2 class="text-4xl md:text-5xl font-bold mb-6">
+              <span class="bg-gradient-to-r from-primary-600 via-accent-500 to-primary-600 bg-clip-text text-transparent bg-300% animate-shimmer"> Configuration Dashboard </span>
+            </h2>
+            <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">Manage your application configurations with ease. Create, edit, and deploy configurations in real-time.</p>
+          </div>
+        </div>
 
-      <footer class="app-footer">
-        <p>Made with <span class="neko-heart">❤️</span> by NekoConf</p>
-      </footer>
+        <!-- Statistics Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <!-- Total Apps -->
+          <div class="card">
+            <div class="flex items-center space-x-4">
+              <div class="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                  ></path>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Apps</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white" x-text="stats.totalApps"></p>
+              </div>
+              <div class="animate-float">
+                <div class="w-2 h-2 bg-blue-400 rounded-full"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Active Connections -->
+          <div class="card">
+            <div class="flex items-center space-x-4">
+              <div class="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Active Connections</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white" x-text="stats.activeConnections"></p>
+              </div>
+              <div class="animate-float" style="animation-delay: 0.5s">
+                <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse-soft"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Server Status -->
+          <div class="card">
+            <div class="flex items-center space-x-4">
+              <div class="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"
+                  ></path>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Server Status</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white" x-text="stats.serverStatus"></p>
+              </div>
+              <div class="animate-float" style="animation-delay: 1s">
+                <div class="w-3 h-3 rounded-full status-indicator" :class="stats.serverStatus === 'Online' ? 'bg-green-400 status-online' : 'bg-red-400 status-offline'"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div x-show="loading" x-cloak class="flex flex-col items-center justify-center py-20">
+          <div class="relative mb-6">
+            <div class="loading-spinner w-16 h-16"></div>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <span class="text-2xl animate-bounce-gentle">🐱</span>
+            </div>
+          </div>
+          <p class="text-gray-600 dark:text-gray-400 font-medium">Loading applications...</p>
+          <div class="mt-4 flex space-x-1">
+            <div class="w-2 h-2 bg-primary-500 rounded-full animate-pulse"></div>
+            <div class="w-2 h-2 bg-primary-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+            <div class="w-2 h-2 bg-primary-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+          </div>
+        </div>
+
+        <!-- Apps Grid -->
+        <div x-show="!loading && filteredApps.length > 0" x-cloak class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 animate-fade-in">
+          <template x-for="app in filteredApps" :key="app.name">
+            <div class="card group cursor-pointer" @click="navigateToApp(app.name)">
+              <div class="card-header">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-accent-500 rounded-lg flex items-center justify-center text-white font-bold">
+                      <span x-text="app.name.charAt(0).toUpperCase()"></span>
+                    </div>
+                    <div>
+                      <h3 class="card-title" x-text="app.name"></h3>
+                      <div class="flex items-center space-x-2 mt-1">
+                        <span class="badge badge-primary" x-text="getComplexity(app)"></span>
+                        <span class="badge" :class="app.status === 'online' ? 'badge-success' : 'badge-error'" x-text="app.status"></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Quick Actions -->
+                  <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex space-x-1">
+                    <button @click.stop="editAppMetadata(app.name)" class="btn btn-ghost btn-icon p-1 text-xs" title="Edit app">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                      </svg>
+                    </button>
+                    <button @click.stop="duplicateApp(app.name)" class="btn btn-ghost btn-icon p-1 text-xs" title="Duplicate app">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                      </svg>
+                    </button>
+                    <button @click.stop="deleteApp(app.name)" class="btn btn-ghost btn-icon p-1 text-xs text-red-500 hover:text-red-600" title="Delete app">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="space-y-4">
+                <p class="card-description" x-text="getAppDescription(app)"></p>
+
+                <!-- Metrics -->
+                <div class="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p class="text-2xl font-bold text-primary-600 dark:text-primary-400" x-text="app.configKeys || 0"></p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Config Keys</p>
+                  </div>
+                  <div>
+                    <p class="text-2xl font-bold text-green-600 dark:text-green-400" x-text="app.connections || 0"></p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Connections</p>
+                  </div>
+                  <div>
+                    <p class="text-xs font-medium text-gray-600 dark:text-gray-400" x-text="formatTime(app.last_modified)"></p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Last Modified</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Empty State -->
+        <div x-show="!loading && filteredApps.length === 0" x-cloak class="text-center py-20">
+          <div class="text-8xl mb-6">📱</div>
+          <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            <span x-show="searchQuery.length === 0">No Applications Yet</span>
+            <span x-show="searchQuery.length > 0">No Apps Found</span>
+          </h3>
+          <p class="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
+            <span x-show="searchQuery.length === 0"> Get started by creating your first application configuration. It only takes a few seconds! </span>
+            <span x-show="searchQuery.length > 0"> Try adjusting your search terms or create a new app with that name. </span>
+          </p>
+          <button @click="showCreateModal = true" class="btn btn-primary px-6 py-3">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            Create Your First App
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Floating Action Button -->
+    <button @click="showCreateModal = true" class="fab animate-glow" :class="{ 'animate-pulse': apps.length === 0 }">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+      </svg>
+    </button>
+
+    <!-- Create App Modal -->
+    <div x-show="showCreateModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center">
+      <!-- Backdrop -->
+      <div class="modal-backdrop" @click="showCreateModal = false"></div>
+
+      <!-- Modal -->
+      <div class="modal w-full max-w-md mx-4">
+        <div class="modal-header">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Create New App</h3>
+            <button @click="showCreateModal = false" class="btn btn-ghost btn-icon">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="modal-content">
+          <form @submit.prevent="createApp()" class="space-y-6">
+            <!-- App Name -->
+            <div class="space-y-2">
+              <label for="appName" class="block text-sm font-semibold text-gray-700 dark:text-gray-300"> App Name <span class="text-red-500">*</span> </label>
+              <div class="relative">
+                <input
+                  x-model="newApp.name"
+                  type="text"
+                  id="appName"
+                  class="form-input w-full px-4 py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                  placeholder="my-awesome-app"
+                  required
+                  pattern="^[a-zA-Z0-9][a-zA-Z0-9_\-]*$"
+                  title="Must start with alphanumeric character and contain only letters, numbers, hyphens, and underscores"
+                />
+              </div>
+              <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1">
+                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                </svg>
+                <span>Use letters, numbers, hyphens, and underscores</span>
+              </p>
+            </div>
+
+            <!-- App Description -->
+            <div class="space-y-2">
+              <label for="appDescription" class="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Description
+                <span class="text-xs font-normal text-gray-500 dark:text-gray-400">(Optional)</span>
+              </label>
+              <div class="relative">
+                <textarea
+                  x-model="newApp.description"
+                  id="appDescription"
+                  class="form-input w-full px-4 py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 resize-none"
+                  placeholder="A brief description of your application..."
+                  rows="3"
+                  maxlength="200"
+                ></textarea>
+                <div class="absolute bottom-2 right-3 text-xs text-gray-400" x-text="`${(newApp.description || '').length}/200`"></div>
+              </div>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Help others understand what your app does</p>
+            </div>
+
+            <!-- Template Selection -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Choose Template</label>
+              <div class="grid grid-cols-1 gap-3">
+                <template x-for="(template, key) in templates" :key="key">
+                  <label class="relative cursor-pointer">
+                    <input x-model="newApp.template" type="radio" :value="key" class="sr-only" />
+                    <div
+                      class="border-2 rounded-lg p-4 transition-all duration-200"
+                      :class="newApp.template === key ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'"
+                    >
+                      <div class="flex items-center space-x-3">
+                        <span class="text-2xl" x-text="template.icon"></span>
+                        <div>
+                          <h4 class="font-medium text-gray-900 dark:text-white" x-text="template.name"></h4>
+                          <p class="text-sm text-gray-500 dark:text-gray-400" x-text="template.description"></p>
+                        </div>
+                      </div>
+                    </div>
+                  </label>
+                </template>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex space-x-3">
+              <button type="button" @click="showCreateModal = false" class="btn btn-secondary flex-1">Cancel</button>
+              <button type="submit" :disabled="creating" class="btn btn-primary flex-1">
+                <svg x-show="!creating" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                <svg x-show="creating" class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span x-text="creating ? 'Creating...' : 'Create App'"></span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
 
-    <div class="kawaii-decoration" aria-hidden="true">
-      <div class="neko-ears"></div>
-      <div class="neko-face"></div>
+    <!-- Edit App Modal -->
+    <div x-show="showEditModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center">
+      <!-- Backdrop -->
+      <div class="modal-backdrop" @click="showEditModal = false"></div>
+
+      <!-- Modal -->
+      <div class="modal w-full max-w-md mx-4">
+        <div class="modal-header">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Edit App</h3>
+            <button @click="showEditModal = false" class="btn btn-ghost btn-icon">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="modal-content">
+          <form @submit.prevent="updateAppMetadata()" class="space-y-6">
+            <!-- App Name -->
+            <div class="space-y-2">
+              <label for="editAppName" class="block text-sm font-semibold text-gray-700 dark:text-gray-300"> App Name <span class="text-red-500">*</span> </label>
+              <div class="relative">
+                <input
+                  x-model="editApp.name"
+                  type="text"
+                  id="editAppName"
+                  class="form-input w-full px-4 py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                  placeholder="my-awesome-app"
+                  required
+                  pattern="^[a-zA-Z0-9][a-zA-Z0-9_\-]*$"
+                  title="Must start with alphanumeric character and contain only letters, numbers, hyphens, and underscores"
+                />
+              </div>
+              <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1">
+                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                </svg>
+                <span>Use letters, numbers, hyphens, and underscores</span>
+              </p>
+            </div>
+
+            <!-- App Description -->
+            <div class="space-y-2">
+              <label for="editAppDescription" class="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Description
+                <span class="text-xs font-normal text-gray-500 dark:text-gray-400">(Optional)</span>
+              </label>
+              <div class="relative">
+                <textarea
+                  x-model="editApp.description"
+                  id="editAppDescription"
+                  class="form-input w-full px-4 py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 resize-none"
+                  placeholder="A brief description of your application..."
+                  rows="3"
+                  maxlength="200"
+                ></textarea>
+                <div class="absolute bottom-2 right-3 text-xs text-gray-400" x-text="`${(editApp.description || '').length}/200`"></div>
+              </div>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Help others understand what your app does</p>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex space-x-3">
+              <button type="button" @click="showEditModal = false" class="btn btn-secondary flex-1">Cancel</button>
+              <button type="submit" :disabled="updating" class="btn btn-primary flex-1">
+                <svg x-show="!updating" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                <svg x-show="updating" class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span x-text="updating ? 'Updating...' : 'Update App'"></span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
 
-    <!-- External Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.33.0/min/vs/loader.js"></script>
+    <!-- Notifications -->
+    <div class="fixed top-4 right-4 z-50 space-y-3 max-w-sm" x-show="notifications.length > 0" x-cloak>
+      <template x-for="notification in notifications" :key="notification.id">
+        <div
+          x-show="notification.show"
+          x-transition:enter="transition ease-out duration-300"
+          x-transition:enter-start="opacity-0 transform translate-x-full"
+          x-transition:enter-end="opacity-100 transform translate-x-0"
+          x-transition:leave="transition ease-in duration-200"
+          x-transition:leave-start="opacity-100 transform translate-x-0"
+          x-transition:leave-end="opacity-0 transform translate-x-full"
+          class="notification"
+          :class="{
+            'notification-success': notification.type === 'success',
+            'notification-error': notification.type === 'error',
+            'notification-warning': notification.type === 'warning',
+            'notification-info': notification.type === 'info'
+          }"
+        >
+          <div class="flex items-start">
+            <div class="flex-shrink-0">
+              <svg x-show="notification.type === 'success'" class="h-6 w-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <svg x-show="notification.type === 'error'" class="h-6 w-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <svg x-show="notification.type === 'warning'" class="h-6 w-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z"></path>
+              </svg>
+              <svg x-show="notification.type === 'info'" class="h-6 w-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div class="ml-3 w-0 flex-1">
+              <p class="text-sm font-medium text-gray-900 dark:text-white" x-text="notification.message"></p>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1" x-text="notification.timestamp"></p>
+            </div>
+            <div class="ml-4 flex-shrink-0">
+              <button @click="removeNotification(notification.id)" class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition-colors duration-200">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
 
-    <!-- Application Scripts -->
-    <script src="{{ request.scope.root_path }}/static/script.js"></script>
+    <!-- Footer -->
+    <footer class="glass-morphism border-t border-gray-200/50 dark:border-gray-700/50 mt-auto">
+      <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+        <div class="flex flex-col sm:flex-row items-center justify-between">
+          <p class="text-sm text-gray-500 dark:text-gray-400">Made with <span class="text-red-500 animate-pulse">❤️</span> by the NekoConf Team</p>
+          <div class="flex items-center space-x-4 mt-2 sm:mt-0">
+            <span class="text-xs text-gray-400">v2.0.0</span>
+            <div class="flex items-center space-x-1">
+              <div class="w-2 h-2 rounded-full bg-green-400 animate-pulse-soft"></div>
+              <span class="text-xs text-gray-500 dark:text-gray-400">System Online</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="{{ root_path }}/static/js/dashboard.js"></script>
   </body>
 </html>

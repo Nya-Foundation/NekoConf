@@ -3,17 +3,17 @@
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 import yaml
 
-from nekoconf.core.config import NekoConfigManager
+from nekoconf.core.config import NekoConf
 from nekoconf.event.type import EventType
 
 
-class TestNekoConfigManagerIntegration:
-    """Integration tests for NekoConfigManager with events and transactions."""
+class TestNekoConfIntegration:
+    """Integration tests for NekoConf with events and transactions."""
 
     @pytest.fixture
     def temp_config_file(self):
@@ -43,7 +43,7 @@ class TestNekoConfigManagerIntegration:
 
     def test_load_and_modify(self, temp_config_file):
         """Test loading from file and modifying configuration."""
-        manager = NekoConfigManager(config_path=temp_config_file, event_emission_enabled=True)
+        manager = NekoConf(temp_config_file, event_emission_enabled=True)
 
         # Verify initial state
         assert manager.get("database.host") == "localhost"
@@ -54,13 +54,13 @@ class TestNekoConfigManagerIntegration:
         manager.save()
 
         # Create a new instance to verify persistence
-        new_manager = NekoConfigManager(config_path=temp_config_file)
+        new_manager = NekoConf(temp_config_file)
         assert new_manager.get("database.host") == "db.example.com"
         assert new_manager.get("database.port") == 5432
 
     def test_transaction_commit(self, temp_config_file):
         """Test transaction commit functionality."""
-        manager = NekoConfigManager(config_path=temp_config_file, event_emission_enabled=True)
+        manager = NekoConf(temp_config_file, event_emission_enabled=True)
 
         # Set up event handler to track changes
         event_handler = MagicMock()
@@ -84,13 +84,13 @@ class TestNekoConfigManagerIntegration:
         assert event_handler.call_count >= 1
 
         # Verify persistence
-        new_manager = NekoConfigManager(config_path=temp_config_file)
+        new_manager = NekoConf(temp_config_file)
         assert new_manager.get("database.host") == "db.example.com"
         assert new_manager.get("new.key") == "value"
 
     def test_event_handling(self, temp_config_file):
         """Test event handling functionality."""
-        manager = NekoConfigManager(config_path=temp_config_file, event_emission_enabled=True)
+        manager = NekoConf(temp_config_file, event_emission_enabled=True)
 
         # Set up event handlers
         db_handler = MagicMock()
@@ -130,7 +130,7 @@ class TestNekoConfigManagerIntegration:
 
     def test_path_pattern_matching(self, temp_config_file):
         """Test path pattern matching for event handlers."""
-        manager = NekoConfigManager(config_path=temp_config_file, event_emission_enabled=True)
+        manager = NekoConf(temp_config_file, event_emission_enabled=True)
 
         # Set up handlers with different path patterns
         exact_handler = MagicMock()
@@ -144,7 +144,7 @@ class TestNekoConfigManagerIntegration:
         # Register handlers
         manager.on_change("database.host")(exact_handler)
         manager.on_change("database.*")(wildcard_handler)
-        manager.on_change("*.credentials.*")(nested_wildcard_handler)
+        manager.on_change("database.*.username")(nested_wildcard_handler)
 
         # Make changes that should trigger specific handlers
         manager.set("database.host", "db.example.com")
@@ -169,7 +169,7 @@ class TestNekoConfigManagerIntegration:
     def test_event_disabled(self, temp_config_file):
         """Test that events can be disabled."""
         # Create manager with events disabled
-        manager = NekoConfigManager(config_path=temp_config_file, event_emission_enabled=False)
+        manager = NekoConf(temp_config_file, event_emission_enabled=False)
 
         # Set up handlers
         handler = MagicMock()
@@ -186,44 +186,43 @@ class TestNekoConfigManagerIntegration:
     def test_environment_overrides(self, temp_config_file):
         """Test environment variable overrides."""
         # Set environment variables
-        with patch.dict(
-            os.environ, {"NEKOCONF_DATABASE_HOST": "env-host", "NEKOCONF_LOGGING_LEVEL": "DEBUG"}
-        ):
-            # Create manager with env overrides enabled
-            manager = NekoConfigManager(
-                config_path=temp_config_file, env_override_enabled=True, event_emission_enabled=True
-            )
 
-            # Verify environment overrides are applied
-            assert manager.get("database.host") == "env-host"
-            assert manager.get("logging.level") == "DEBUG"
+        os.environ["NEKOCONF_DATABASE_HOST"] = "env-host"
+        os.environ["NEKOCONF_LOGGING_LEVEL"] = "DEBUG"
 
-            # Set up event handler
-            handler = MagicMock()
-            handler.__name__ = "env_event_handler"
-            manager.on_change("database.host")(handler)
+        # Create manager with env overrides enabled
+        manager = NekoConf(temp_config_file, env_override_enabled=True, event_emission_enabled=True)
+        manager.load()
 
-            # Change value that was overridden
-            manager.set("database.host", "new-host")
+        # Verify environment overrides are applied
+        assert manager.get("database.host") == "env-host"
+        assert manager.get("logging.level") == "DEBUG"
 
-            # Verify event was emitted for the change
-            assert handler.call_count == 1
+        # Set up event handler
+        handler = MagicMock()
+        handler.__name__ = "env_event_handler"
+        manager.on_change("database.host")(handler)
 
-            # Environment override should be overridden by set()
-            assert manager.get("database.host") == "new-host"
+        # Change value that was overridden
+        manager.set("database.host", "new-host")
 
-            # Save and reload to verify persistence
-            manager.save()
+        # Verify event was emitted for the change
+        assert handler.call_count == 1
 
-            # Create new manager - should still have env overrides
-            new_manager = NekoConfigManager(config_path=temp_config_file, env_override_enabled=True)
+        # Environment override should be overridden by set()
+        assert manager.get("database.host") == "new-host"
 
-            # Env vars should still take precedence over saved values
-            assert new_manager.get("database.host") == "env-host"
+        # Save and reload to verify persistence
+        manager.save()
 
-            # But if we disable env overrides, should get file value
-            no_env_manager = NekoConfigManager(
-                config_path=temp_config_file, env_override_enabled=False
-            )
+        # Create new manager - should still have env overrides
+        new_manager = NekoConf(temp_config_file, env_override_enabled=True)
+        new_manager.reload()
 
-            assert no_env_manager.get("database.host") == "new-host"
+        # Env vars should still take precedence over saved values
+        assert new_manager.get("database.host") == "env-host"
+
+        # But if we disable env overrides, should get file value
+        no_env_manager = NekoConf(temp_config_file, env_override_enabled=False)
+
+        assert no_env_manager.get("database.host") == "new-host"

@@ -4,7 +4,6 @@ This module provides functionality to define and execute event pipelines
 for configuration changes, with support for filtering and transformation.
 """
 
-import asyncio
 import logging
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -13,7 +12,7 @@ from .handler import EventContext, EventHandler
 from .type import EventType
 
 
-class NekoEventPipeline:
+class EventPipeline:
     """Central event pipeline for NekoConf configuration events."""
 
     def __init__(self, logger: Optional[logging.Logger] = None):
@@ -123,7 +122,7 @@ class NekoEventPipeline:
 
 
 def on_event(
-    event_pipeline: NekoEventPipeline,
+    event_pipeline: EventPipeline,
     event_type: Union[EventType, List[EventType]],
     path_pattern: Optional[str] = None,
     priority: int = 100,
@@ -153,7 +152,7 @@ def on_event(
     return decorator
 
 
-def on_change(event_pipeline: NekoEventPipeline, path_pattern: str, priority: int = 100):
+def on_change(event_pipeline: EventPipeline, path_pattern: str, priority: int = 100):
     """Decorator to register a function as a change event handler.
 
     Example:

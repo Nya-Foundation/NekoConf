@@ -22,8 +22,8 @@ export NEKOCONF_FEATURES_ENABLED=true
 ```
 
 ```python
-from nekoconf import NekoConfigManager
-config = NekoConfigManager("config.yaml")
+from nekoconf import NekoConf
+config = NekoConf("config.yaml")
 print(config.get("database.host"))  # prod-db.example.com
 print(config.get_bool("features.enabled"))  # True
 ```
@@ -33,7 +33,7 @@ print(config.get_bool("features.enabled"))  # True
 You can change the prefix and delimiter to fit your environment:
 
 ```python
-config = NekoConfigManager(
+config = NekoConf(
     "config.yaml",
     env_prefix="MYAPP",
     env_nested_delimiter="__"
@@ -49,7 +49,7 @@ This maps `database.host` to `MYAPP_DATABASE__HOST`.
 - **Strict Parsing:** Raise errors if env values can't be parsed.
 
 ```python
-config = NekoConfigManager(
+config = NekoConf(
     "config.yaml",
     env_include_paths=["database", "features.enabled"],
     env_exclude_paths=["logging.secret_key"],

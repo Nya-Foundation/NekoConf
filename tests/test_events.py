@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, call
 import pytest
 
 from nekoconf.event.handler import EventContext, EventHandler
-from nekoconf.event.pipeline import NekoEventPipeline
+from nekoconf.event.pipeline import EventPipeline
 from nekoconf.event.type import EventType
 
 
@@ -136,13 +136,33 @@ class TestEventHandler:
         assert args["custom_param"] == "test"
 
     @pytest.mark.asyncio
+    def test_handler_is_async(self):
+        """Test that is_async is correctly determined based on the callback type."""
+
+        async def mock_async_callback():
+            pass
+
+        handler = EventHandler(mock_async_callback, {EventType.UPDATE})
+
+        assert handler.is_async is True, "Handler should be async based on the callback type"
+
+    @pytest.mark.asyncio
     async def test_handler_handle_event_async(self):
         """Test handling events with an async callback."""
-        mock_callback = AsyncMock()
-        mock_callback.__name__ = "mock_async_callback"  # Add __name__ attribute
-        handler = EventHandler(mock_callback, {EventType.UPDATE}, custom_param="test")
 
-        # Since we're using AsyncMock, is_async should be detected as True
+        # Use a real async function instead of AsyncMock for better compatibility
+        async def mock_async_callback(**kwargs):
+            # Store the call arguments for verification
+            mock_async_callback.call_args = kwargs
+            mock_async_callback.call_count = getattr(mock_async_callback, "call_count", 0) + 1
+
+        mock_async_callback.call_count = 0
+        mock_async_callback.call_args = None
+        mock_async_callback.__name__ = "mock_async_callback"
+
+        handler = EventHandler(mock_async_callback, {EventType.UPDATE}, custom_param="test")
+
+        # Should be detected as async
         assert handler.is_async is True
 
         context = EventContext(
@@ -157,24 +177,59 @@ class TestEventHandler:
         await handler.handle_async(context)
 
         # Callback should be called with the right parameters
-        mock_callback.assert_called_once()
-        args = mock_callback.call_args[1]
+        assert mock_async_callback.call_count == 1
+        args = mock_async_callback.call_args
         assert args["event_type"] == EventType.UPDATE
         assert args["path"] == "database.host"
         assert args["custom_param"] == "test"
 
+    @pytest.mark.asyncio
+    async def test_handler_asyncmock_compatibility(self):
+        """Test AsyncMock compatibility across Python versions."""
+        import sys
+
+        # Only test AsyncMock on Python 3.10+ where it's more reliable
+        if sys.version_info >= (3, 10):
+            mock_callback = AsyncMock()
+            mock_callback.__name__ = "mock_async_callback"
+            handler = EventHandler(mock_callback, {EventType.UPDATE}, custom_param="test")
+
+            # Should be detected as async in Python 3.10+
+            assert handler.is_async is True
+
+            context = EventContext(
+                event_type=EventType.UPDATE,
+                path="database.host",
+                old_value="localhost",
+                new_value="db.example.com",
+                config_data={"database": {"host": "db.example.com"}},
+            )
+
+            # Test async handling
+            await handler.handle_async(context)
+
+            # Callback should be called with the right parameters
+            mock_callback.assert_called_once()
+            args = mock_callback.call_args[1]
+            assert args["event_type"] == EventType.UPDATE
+            assert args["path"] == "database.host"
+            assert args["custom_param"] == "test"
+        else:
+            # For Python 3.9, skip this test or use alternative approach
+            pytest.skip("AsyncMock detection unreliable in Python 3.9")
+
 
 class TestEventPipeline:
-    """Test cases for NekoEventPipeline functionality."""
+    """Test cases for EventPipeline functionality."""
 
     def test_pipeline_initialization(self):
         """Test event pipeline initialization."""
-        pipeline = NekoEventPipeline()
+        pipeline = EventPipeline()
         assert pipeline.handlers == []
 
     def test_register_handler(self):
         """Test registering handlers in the pipeline."""
-        pipeline = NekoEventPipeline()
+        pipeline = EventPipeline()
         mock_callback = MagicMock()
         mock_callback.__name__ = "mock_callback"  # Add __name__ attribute
 
@@ -200,7 +255,7 @@ class TestEventPipeline:
 
     def test_unregister_handler(self):
         """Test unregistering handlers from the pipeline."""
-        pipeline = NekoEventPipeline()
+        pipeline = EventPipeline()
         mock_callback = MagicMock()
         mock_callback.__name__ = "mock_callback"  # Add __name__ attribute
 
@@ -223,7 +278,7 @@ class TestEventPipeline:
 
     def test_emit_event(self):
         """Test emitting events through the pipeline."""
-        pipeline = NekoEventPipeline()
+        pipeline = EventPipeline()
 
         # Create callbacks for different event types and paths
         callback1 = MagicMock()
@@ -272,7 +327,7 @@ class TestEventPipeline:
 
     def test_emit_with_ignore(self):
         """Test ignoring events with the ignore flag."""
-        pipeline = NekoEventPipeline()
+        pipeline = EventPipeline()
         callback = MagicMock()
         callback.__name__ = "mock_callback"  # Add __name__ attribute
 
@@ -292,7 +347,7 @@ class TestEventPipeline:
 
     def test_handler_exception_handling(self):
         """Test that exceptions in handlers are caught and don't affect other handlers."""
-        pipeline = NekoEventPipeline()
+        pipeline = EventPipeline()
 
         # Create handlers: one that works and one that raises an exception
         def raising_handler(**kwargs):

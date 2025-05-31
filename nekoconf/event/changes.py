@@ -11,7 +11,7 @@ from ..utils.helper import getLogger
 from .pipeline import EventType
 
 if TYPE_CHECKING:
-    from ..core.config import NekoConfigManager
+    from ..core.config import NekoConf
 
 logger = getLogger(__name__)
 
@@ -100,44 +100,6 @@ class ChangeTracker:
         return changes
 
     @staticmethod
-    def detect_single_change(
-        old_config: Dict[str, Any], new_config: Dict[str, Any], path: str
-    ) -> Optional[ConfigChange]:
-        """Detect a single change at a specific path.
-
-        Args:
-            old_config: Previous configuration state
-            new_config: New configuration state
-            path: Path to check for changes
-
-        Returns:
-            ConfigChange object or None if no change at the path
-        """
-        from ..utils.helper import get_nested_value
-
-        old_value = get_nested_value(old_config, path)
-        new_value = get_nested_value(new_config, path)
-
-        # If path doesn't exist in either, no change
-        if old_value is None and new_value is None:
-            return None
-
-        # Path exists in new but not old = CREATE
-        if old_value is None:
-            return ConfigChange(ChangeType.CREATE, path, None, new_value)
-
-        # Path exists in old but not new = DELETE
-        if new_value is None:
-            return ConfigChange(ChangeType.DELETE, path, old_value, None)
-
-        # Path exists in both but values differ = UPDATE
-        if old_value != new_value:
-            return ConfigChange(ChangeType.UPDATE, path, old_value, new_value)
-
-        # Path exists in both but values are the same = no change
-        return None
-
-    @staticmethod
     def _walk_changes(
         old_data: Dict[str, Any],
         new_data: Dict[str, Any],
@@ -204,13 +166,13 @@ class ChangeTracker:
                 )
 
 
-def emit_change_events(config: "NekoConfigManager", changes: List[ConfigChange]) -> None:
+def emit_change_events(config: "NekoConf", changes: List[ConfigChange]) -> None:
     """Emit events for a list of changes.
 
     This centralizes event emission logic in one place.
 
     Args:
-        config_manager: The NekoConfigManager instance
+        config_manager: The NekoConf instance
         changes: List of changes to emit events for
         ignore: If True, ignore the changes and don't emit events
     """
@@ -239,7 +201,8 @@ def emit_change_events(config: "NekoConfigManager", changes: List[ConfigChange])
                 config_data=config.data,
             )
 
-        logger.info(
-            f"Emitted {event_type.value} event for path '{change.path}' "
-            f"from '{change.old_value}' to '{change.new_value}'"
-        )
+        if change.path != "*":
+            logger.debug(
+                f"Emitted {event_type.value} event for path '{change.path}' "
+                f"from '{change.old_value}' to '{change.new_value}'"
+            )
