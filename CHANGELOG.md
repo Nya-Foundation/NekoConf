@@ -1,6 +1,28 @@
 # CHANGELOG
 
 
+## v1.1.0 (2025-05-31)
+
+### Chores
+
+- Black format
+  ([`c2c2e8b`](https://github.com/Nya-Foundation/NekoConf/commit/c2c2e8be1841845af71da9aba6b53c4fd429ffb4))
+
+- **format**: Apply automatic formatting [skip ci]
+  ([`ce09be9`](https://github.com/Nya-Foundation/NekoConf/commit/ce09be97e0ce731e63074ade4e2de661269ba3a8))
+
+- **format**: Apply automatic formatting [skip ci]
+  ([`ad25593`](https://github.com/Nya-Foundation/NekoConf/commit/ad255934d14e00f965a39693eab62615175e9d6e))
+
+- **format**: Apply automatic formatting [skip ci]
+  ([`6dad954`](https://github.com/Nya-Foundation/NekoConf/commit/6dad9547780e0a568402f14ddb43665cc04c44e8))
+
+### Features
+
+- Add support for multi-config management, add support for python 3.10, architecture refactor
+  ([`652f719`](https://github.com/Nya-Foundation/NekoConf/commit/652f719c02a90e6ef98a05e8a244bf538faaf9f9))
+
+
 ## v1.0.3 (2025-05-09)
 
 ### Bug Fixes
