@@ -73,7 +73,7 @@ class TestPathMatcher:
         assert PathMatcher.match("database.host.*", "database.host") is True
 
     def test_jmespath_expressions(self):
-        """Test JMESPath expressions in the pattern."""
+        """Test dot notation in the pattern."""
         assert PathMatcher.match("database.servers[0]", "database.servers[0]") is True
         assert PathMatcher.match("database.servers[0].host", "database.servers[0].host") is True
 

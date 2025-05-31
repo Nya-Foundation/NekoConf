@@ -3,21 +3,19 @@ Authentication module for NekoConf.
 Provides authentication mechanisms and middleware.
 """
 
-import importlib.resources
 import logging
 from typing import Optional
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import APIKeyHeader
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import HTMLResponse, JSONResponse
+from starlette.responses import JSONResponse, RedirectResponse
 
 from nekoconf.utils.helper import getLogger
-from starlette.responses import RedirectResponse
 
 
 class NekoAuthGuard:
-    """Centralized authentication manager for NekoConfigServer"""
+    """Centralized authentication manager for NekoConfOrchestrator"""
 
     def __init__(self, api_key=None):
         """
@@ -49,10 +47,8 @@ class NekoAuthGuard:
         Returns:
             bool: True if valid or no key configured, False otherwise
         """
-        configured_key = self.api_key
-
         # No API key required if none is configured
-        if not configured_key:
+        if not self.api_key:
             return True
 
         # API key required but not provided
@@ -64,8 +60,8 @@ class NekoAuthGuard:
             api_key = api_key[7:]
 
         # API key provided but invalid
-        if api_key != configured_key:
-            raise HTTPException(status_code=403, detail="Unauthorized: Insufficient Permissions")
+        if api_key != self.api_key:
+            raise HTTPException(status_code=403, detail="Unauthorized: Invalid API key")
 
         return True
 
@@ -88,8 +84,7 @@ class NekoAuthGuard:
         Returns:
             bool: True if valid, False otherwise
         """
-        configured_key = self.api_key
-        if not configured_key:
+        if not self.api_key:
             return True
 
         # Get API key from session cookie
@@ -99,7 +94,7 @@ class NekoAuthGuard:
         cookie_key = cookie_key.strip() if cookie_key else ""
 
         # Validate the key
-        return cookie_key == configured_key
+        return cookie_key == self.api_key
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -128,10 +123,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if any(request.url.path.startswith(path) for path in excluded_paths):
             return await call_next(request)
 
-        configured_key = self.auth.api_key
-
         # No API key required if none is configured
-        if not configured_key:
+        if not self.auth.api_key:
             return await call_next(request)
 
         # First, check for valid session cookie
@@ -143,10 +136,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if api_key.startswith("Bearer "):
             api_key = api_key[7:]
 
-        if api_key and api_key == configured_key:
+        if api_key and api_key == self.auth.api_key:
             return await call_next(request)
 
-        # Check if the path is a root-level config UI "http://<host>" path
+        # Check if the path is a root-level config UI path
         path = request.url.path
         if not path or path == "/":
             # For Config UI access, redirect to login page

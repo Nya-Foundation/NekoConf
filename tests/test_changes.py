@@ -46,12 +46,12 @@ class TestConfigChange:
 class TestChangeTracker:
     """Test cases for ChangeTracker functionality."""
 
-    def test_detect_single_change_create(self):
+    def test_detect_changes_create(self):
         """Test detecting a create change."""
         old_config = {"database": {"port": 5432}}
         new_config = {"database": {"port": 5432, "host": "localhost"}}
 
-        change = ChangeTracker.detect_single_change(old_config, new_config, "database.host")
+        change = ChangeTracker.detect_changes(old_config, new_config)[1]
 
         assert change is not None
         assert change.change_type == ChangeType.CREATE
@@ -59,12 +59,12 @@ class TestChangeTracker:
         assert change.old_value is None
         assert change.new_value == "localhost"
 
-    def test_detect_single_change_update(self):
+    def test_detect_changes_update(self):
         """Test detecting an update change."""
         old_config = {"database": {"host": "localhost"}}
         new_config = {"database": {"host": "db.example.com"}}
 
-        change = ChangeTracker.detect_single_change(old_config, new_config, "database.host")
+        change = ChangeTracker.detect_changes(old_config, new_config)[1]
 
         assert change is not None
         assert change.change_type == ChangeType.UPDATE
@@ -72,12 +72,12 @@ class TestChangeTracker:
         assert change.old_value == "localhost"
         assert change.new_value == "db.example.com"
 
-    def test_detect_single_change_delete(self):
+    def test_detect_changes_delete(self):
         """Test detecting a delete change."""
         old_config = {"database": {"host": "localhost", "port": 5432}}
         new_config = {"database": {"port": 5432}}
 
-        change = ChangeTracker.detect_single_change(old_config, new_config, "database.host")
+        change = ChangeTracker.detect_changes(old_config, new_config)[1]
 
         assert change is not None
         assert change.change_type == ChangeType.DELETE
@@ -85,18 +85,18 @@ class TestChangeTracker:
         assert change.old_value == "localhost"
         assert change.new_value is None
 
-    def test_detect_single_change_no_change(self):
+    def test_detect_changes_no_change(self):
         """Test when no change is detected."""
         old_config = {"database": {"host": "localhost"}}
         new_config = {"database": {"host": "localhost"}}
 
-        change = ChangeTracker.detect_single_change(old_config, new_config, "database.host")
+        change = ChangeTracker.detect_changes(old_config, new_config)
 
-        assert change is None
+        assert change is None or len(change) == 0
 
         # Also test nonexistent path
-        change = ChangeTracker.detect_single_change(old_config, new_config, "nonexistent.path")
-        assert change is None
+        change = ChangeTracker.detect_changes(old_config, new_config)
+        assert change is None or len(change) == 0
 
     def test_detect_changes(self):
         """Test detecting all changes between two configs."""

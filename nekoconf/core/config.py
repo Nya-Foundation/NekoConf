@@ -1,49 +1,53 @@
 """Configuration manager module for NekoConf.
 
 This module provides functionality to read, write, and manage configuration files
-in YAML, JSON, and TOML formats.
+in YAML, JSON, and TOML formats using pluggable storage backends.
 """
 
 import copy
 import logging
-import traceback
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union, overload
 
-import filelock
+# Type variable for type hints
+T = TypeVar("T")
 
 from ..event.changes import ChangeTracker, ChangeType, ConfigChange, emit_change_events
-from ..event.pipeline import EventType, NekoEventPipeline, on_change, on_event
+from ..event.pipeline import EventPipeline, EventType, on_change, on_event
 
 # Check for optional dependencies
-from ..remote import HAS_REMOTE_DEPS, RemoteConfigClient
 from ..schema import HAS_SCHEMA_DEPS, NekoSchemaValidator
+from ..storage import (
+    FileStorageBackend,
+    StorageBackend,
+    StorageError,
+)
 from ..utils.env import EnvOverrideHandler
 from ..utils.helper import (
-    create_file_if_not_exists,
     deep_merge,
+    delete_nested_value,
     get_nested_value,
     getLogger,
-    load_file,
-    save_file,
     set_nested_value,
 )
-from ..utils.lock import LockManager
 
 if TYPE_CHECKING:
-    from ..core.wrapper import NekoConfigManager
+    pass
 
 
-class NekoConfigManager:
-    """Configuration manager for reading, writing, and event handling configuration files."""
+class NekoConf:
+    """Configuration manager for reading, writing, and event handling configuration files.
+
+    This class provides both low-level configuration management and high-level
+    type-safe convenience methods for accessing configuration values.
+    """
 
     def __init__(
         self,
-        config_path: Optional[Union[str, Path]] = None,
+        storage: Optional[Union[StorageBackend, str, Path, dict]] = None,
         schema_path: Optional[Union[str, Path]] = None,
         logger: Optional[logging.Logger] = None,
-        # Lock settings
-        lock_timeout: float = 1.0,
+        read_only: Optional[bool] = False,
         # Environment variable override parameters
         env_override_enabled: bool = False,
         env_prefix: str = "NEKOCONF",
@@ -52,25 +56,19 @@ class NekoConfigManager:
         env_exclude_paths: Optional[List[str]] = None,
         env_preserve_case: bool = False,
         env_strict_parsing: bool = False,
-        # Remote configuration parameters
-        remote_url: Optional[str] = None,
-        remote_api_key: Optional[str] = None,
-        remote_read_only: bool = True,
-        remote_reconnect_attempts: int = 5,
-        remote_reconnect_delay: float = 1.0,
-        # In-memory mode (no file)
-        in_memory: bool = False,
         # Event handling parameters
         event_emission_enabled: bool = False,
     ) -> None:
         """Initialize the configuration manager.
 
         Args:
-            config_path: Path to the configuration file (optional if using remote_url and in_memory mode)
+            storage: Optional storage backend instance. If None (default), uses memory-only storage.
+                    storage can be a string (file path) or a dictionary for in-memory data.
+                    Create backends using: FileStorageBackend(), RemoteStorageBackend(), etc.
             schema_path: Path to the schema file for validation (optional)
+            read_only: If True, prevents writing to the storage backend (default: False)
             logger: Optional logger instance for logging messages
-            lock_timeout: Timeout in seconds for acquiring file locks
-            env_override_enabled: Enable/disable environment variable overrides (default: Fale)
+            env_override_enabled: Enable/disable environment variable overrides (default: False)
             env_prefix: Prefix for environment variables (default: "NEKOCONF"). Set to "" for no prefix.
             env_nested_delimiter: Delimiter used in env var names for nested keys (default: "_")
             env_include_paths: List of dot-separated paths to include in overrides.
@@ -79,102 +77,86 @@ class NekoConfigManager:
                                Takes precedence over include_paths (default: None).
             env_preserve_case: If True, preserves the original case of keys from environment variables.
             env_strict_parsing: If True, raises exceptions when parsing fails rather than logging warnings.
-            remote_url: URL of a remote NekoConf server to sync with (optional)
-            remote_api_key: API key for authentication with the remote server (optional)
-            remote_read_only: If True, only read from remote server, no writes allowed (default: True)
-            remote_reconnect_attempts: Number of reconnection attempts on failure (default: 5)
-            remote_reconnect_delay: Delay between reconnection attempts with exponential backoff (default: 1.0)
-            in_memory: If True, configuration is kept only in memory, not saved to file (default: False)
             event_emission_enabled: If True, emits events for configuration changes (default: False)
 
+        Examples:
+            # Memory-only storage (default)
+            config = NekoConf()
+            config = NekoConf({"debug": True})
+
+            # File storage for persistent configurations
+            config = NekoConf("config.yaml")
+            config = NekoConf(Path("config.yaml"))
+            config = NekoConf(storage=FileStorageBackend("config.yaml"))
+
+            # Remote storage for distributed configurations
+            config = NekoConf(storage=RemoteStorageBackend("https://nekoconf-server.com", api_key="key"))
         """
         self.logger = logger or getLogger(__name__)
-        self.data: Dict[str, Any] = {}
-        self.event_pipeline = NekoEventPipeline(logger=self.logger)
-        self.in_memory = in_memory
-
-        # Determine operating mode
-        self.remote_sync: RemoteConfigClient = None
-        self.config_path = None
-        self.lock_manager = None
-        self.event_disabled = not event_emission_enabled
-
-        # Initialize configuration source based on provided parameters
-        if remote_url:
-            # Remote configuration mode
-            if not HAS_REMOTE_DEPS:
-                self.logger.error(
-                    "Remote configuration requested but dependencies are not available. "
-                    "Install with: pip install nekoconf[remote]"
-                )
-                if config_path:  # Fall back to local file if possible
-                    self.logger.warning("Falling back to local configuration only")
-                    self.config_path = Path(config_path)
-                    self.lock_manager = LockManager(self.config_path, timeout=lock_timeout)
-                else:
-                    raise ImportError(
-                        "Cannot initialize: remote dependencies missing and no config_path provided. "
-                        "Install with: pip install nekoconf[remote]"
-                    )
-            else:
-                try:
-                    self.remote_sync = RemoteConfigClient(
-                        remote_url=remote_url,
-                        api_key=remote_api_key,
-                        read_only=remote_read_only,
-                        on_update=self._handle_remote_update,
-                        logger=self.logger,
-                        reconnect_attempts=remote_reconnect_attempts,
-                        reconnect_delay=remote_reconnect_delay,
-                    )
-                    self.logger.info(f"Configured to use remote configuration from {remote_url}")
-
-                    # Still set up local file if not in-memory mode
-                    if not in_memory and config_path:
-                        self.config_path = Path(config_path)
-                        self.lock_manager = LockManager(self.config_path, timeout=lock_timeout)
-                        self.logger.info(
-                            f"Local configuration will be stored at {self.config_path}"
-                        )
-                    else:
-                        self.logger.info("Using in-memory configuration with remote sync")
-                except Exception as e:
-                    self.logger.error(f"Failed to initialize remote sync: {e}")
-                    if config_path:  # Fall back to local file if possible
-                        self.logger.warning("Falling back to local configuration only")
-                        self.config_path = Path(config_path)
-                        self.lock_manager = LockManager(self.config_path, timeout=lock_timeout)
-                    else:
-                        raise ValueError(
-                            f"Cannot initialize: remote sync failed and no config_path provided: {e}"
-                        )
-        elif config_path:
-            # Local file mode
-            self.config_path = Path(config_path)
-            self.lock_manager = LockManager(self.config_path, timeout=lock_timeout)
-            self.logger.info(f"Using local configuration from {self.config_path}")
-        else:
-            # In-memory only mode
-            if not in_memory:
-                raise ValueError("Must provide either config_path or set in_memory=True")
-            self.logger.info("Using in-memory configuration only (no persistence)")
-
         self.schema_path = Path(schema_path) if schema_path else None
 
+        # Initialize configuration data
+        self.data: Dict[str, Any] = {}
+
+        self.read_only = read_only
+
+        if self.read_only:
+            self.logger.debug("Configuration is read-only, no changes will be saved")
+
+        # Initialize storage backend
+        self._memory_only = False
+        self.storage_backend: StorageBackend = self._init_storage_backend(storage)
+        if self.storage_backend:
+            self.logger.debug(f"Using storage backend: {self.storage_backend}")
+            self.storage_backend.set_change_callback(self._handle_storage_update)
+        else:
+            self.logger.debug("Using memory-only storage")
+            self._memory_only = True
+
         # Initialize environment variable override handler
-        self.env_handler = EnvOverrideHandler(
-            enabled=env_override_enabled,
-            prefix=env_prefix,
-            nested_delimiter=env_nested_delimiter,
-            include_paths=env_include_paths,
-            exclude_paths=env_exclude_paths,
-            logger=self.logger,
-            preserve_case=env_preserve_case,
-            strict_parsing=env_strict_parsing,
-        )
+        self.env_handler: Optional[EnvOverrideHandler] = None
+        if env_override_enabled:
+            self.env_handler = EnvOverrideHandler(
+                prefix=env_prefix,
+                nested_delimiter=env_nested_delimiter,
+                include_paths=env_include_paths,
+                exclude_paths=env_exclude_paths,
+                logger=self.logger,
+                preserve_case=env_preserve_case,
+                strict_parsing=env_strict_parsing,
+            )
+
+        # Event pipeline initialization
+        self.event_disabled = not event_emission_enabled
+        self.event_pipeline: EventPipeline = EventPipeline(logger=self.logger)
 
         self._load_validators()
         self._init_config()
+
+    def _init_storage_backend(
+        self, storage: Optional[Union[StorageBackend, str, Path, dict]]
+    ) -> None:
+        """Handle the storage backend initialization with fallbacks.
+
+        Args:
+            storage: Storage backend instance or path to a file
+        """
+        if storage is None:
+            return None
+        elif isinstance(storage, StorageBackend):
+            return storage
+        elif isinstance(storage, Path):
+            return FileStorageBackend(storage)
+        elif isinstance(storage, dict):
+            self.data = storage
+            return None
+        elif isinstance(storage, str):
+            return FileStorageBackend(storage)
+        else:
+            raise TypeError(
+                f"storage must be a StorageBackend instance. "
+                f"Got {type(storage)}. Use FileStorageBackend(), RemoteStorageBackend(), etc."
+            )
 
     def __enter__(self):
         """Context manager entry."""
@@ -187,73 +169,30 @@ class NekoConfigManager:
 
     def cleanup(self):
         """Clean up resources used by the configuration manager."""
-        # Stop remote sync if active
-        if self.remote_sync:
-            self.logger.debug("Stopping remote configuration sync")
-            self.remote_sync.stop()
-
-        # Clean up lock file if using local file
-        if self.lock_manager:
-            self.lock_manager.cleanup()
+        # Clean up storage backend
+        if self.storage_backend:
+            self.storage_backend.cleanup()
 
     def _init_config(self) -> None:
-        """Initialize the configuration by loading it."""
-        # Create local file if needed
-        if self.config_path and not self.in_memory:
-            create_file_if_not_exists(self.config_path)
+        """Initialize the configuration by loading it from the storage backend."""
+        if self._memory_only:
+            # For memory-only mode, data is already initialized in __init__
+            self.logger.debug("Using memory-only storage with initial data")
+            return
 
-        # If using remote config, start sync
-        if self.remote_sync:
-            if self.remote_sync.start():
-                # Initial load from remote was successful
-                self.data = self.remote_sync.get_config()
-                current_data = load_file(self.config_path) or {}
-
-                # If the remote data is different from the local file, save it
-                if current_data != self.data:
-                    save_file(self.config_path, self.data)
-
-            elif self.config_path:
-                # Remote failed but we have a local file, fall back to it
-                self.logger.warning("Remote sync failed, falling back to local configuration")
-                self.load()
-            else:
-                # Remote failed and no local file
-                self.logger.error("Remote sync failed and no local fallback available")
-                self.data = {}
-        else:
-            # Standard local file load
-            self.load()
-
-    def _handle_remote_update(self, config_data: Dict[str, Any]) -> None:
-        """Handle configuration updates from remote server.
-
-        Args:
-            config_data: Updated configuration from remote
-        """
-        old_data = self.data.copy()
-        self.data = config_data
-
-        self.logger.debug("Received remote configuration update")
-
-        # Emit change event if data changed
-        if old_data != self.data:
-            self.event_pipeline.emit(
-                EventType.CHANGE,
-                old_value=old_data,
-                new_value=self.data,
-                config_data=self.data,
-                ignore=self.event_disabled,
+        try:
+            # Load initial configuration from storage backend
+            self.data = self.storage_backend.load()
+            self.logger.debug(
+                f"Initialized configuration from storage backend, {self.storage_backend}"
             )
+        except StorageError as e:
+            self.logger.error(f"Failed to initialize configuration: {e}")
+            self.data = {}
 
-        # Save to local file if configured
-        if self.config_path and not self.in_memory:
-            self.logger.debug("Saving remote configuration update to local file")
-            try:
-                with self.lock_manager:
-                    save_file(self.config_path, self.data)
-            except Exception as e:
-                self.logger.error(f"Failed to save remote update to local file: {e}")
+    def _handle_storage_update(self, config_data: Dict[str, Any]) -> None:
+        """Handle updates from the storage backend."""
+        self.replace(config_data)
 
     def _load_validators(self) -> None:
         """Load schema validators if available."""
@@ -273,60 +212,31 @@ class NekoConfigManager:
             except Exception as e:
                 self.logger.error(f"Failed to load schema validator: {e}")
 
-    def load(self, apply_env_overrides: bool = True, in_place: bool = False) -> Dict[str, Any]:
-        """Load configuration from file and apply environment variable overrides.
-
-        Args:
-            apply_env_overrides: Whether to apply environment variable overrides after loading
-            in_place: Whether to modify data in-place (more memory efficient for large configs)
+    def load(self) -> Dict[str, Any]:
+        """Load configuration from storage backend and apply environment variable overrides.
 
         Returns:
             The effective configuration data after overrides.
         """
-        loaded_data: Dict[str, Any] = {}
-
-        # If we're in remote mode, use that as source of truth
-        if self.remote_sync:
-            loaded_data = self.remote_sync.get_config()
-            self.logger.debug("Reloaded configuration from remote server")
-        # Otherwise if we have a local file and not in memory-only mode
-        elif self.config_path and not self.in_memory:
-            try:
-                # Use lock manager to prevent race conditions during file read
-                with self.lock_manager:
-                    if self.config_path.exists():
-                        loaded_data = load_file(self.config_path) or {}
-                        self.logger.debug(f"Loaded configuration from file: {self.config_path}")
-                    else:
-                        self.logger.warning(f"Configuration file not found: {self.config_path}")
-                        loaded_data = {}
-
-            except filelock.Timeout:
-                self.logger.error(
-                    f"Could not acquire lock to read config file {self.config_path} - another process may be using it"
-                )
-                # Return current data if lock fails
-                return self.data
-            except Exception as e:
-                self.logger.error(
-                    f"Error loading configuration file {self.config_path}: {e}, {traceback.format_exc()}"
-                )
-                loaded_data = {}
-        else:
-            # In-memory only, just use current data
-            self.logger.debug("Using current in-memory configuration")
+        if self._memory_only:
+            self.logger.debug("Memory-only mode: no storage backend to load from")
             return self.data
+
+        try:
+            loaded_data = self.storage_backend.load()
+            self.logger.debug("Loaded configuration from storage backend")
+        except StorageError as e:
+            self.logger.error(f"Error loading configuration: {e}")
+            loaded_data = {}
 
         # Apply environment variable overrides to the loaded data
         old_data = copy.deepcopy(self.data)
 
         # Use the env_handler to apply overrides
-        if apply_env_overrides:
-            effective_data = self.env_handler.apply_overrides(loaded_data, in_place=in_place)
+        if self.env_handler:
+            self.data = self.env_handler.apply_overrides(loaded_data, in_place=True)
         else:
-            effective_data = loaded_data if in_place else loaded_data.copy()
-
-        self.data = effective_data
+            self.data = loaded_data
 
         # Emit reload event with old and new values
         self.event_pipeline.emit(
@@ -337,23 +247,22 @@ class NekoConfigManager:
             ignore=self.event_disabled,
         )
 
-        # If the loaded data is empty or unchanged, return it as is
-        if not old_data or old_data == self.data:
+        # If the loaded data is empty or unchanged, do not emit further events
+        if not old_data or old_data == self.data or self.event_disabled:
             return self.data
 
-        # Emit update event if there was a effective change on reload
-        self.event_pipeline.emit(
-            EventType.UPDATE,
-            old_value=old_data,
-            new_value=self.data,
-            config_data=self.data,
-            ignore=self.event_disabled,
-        )
+        changes = ChangeTracker.detect_changes(old_data, self.data)
+
+        if changes:
+            emit_change_events(self, changes)
 
         return self.data
 
+    def reload(self) -> Dict[str, Any]:
+        return self.load()
+
     def save(self) -> bool:
-        """Save configuration to file.
+        """Save configuration to storage backend.
 
         Note: This saves the *current effective configuration* which might include
         values that were originally overridden by environment variables but later
@@ -362,46 +271,24 @@ class NekoConfigManager:
         Returns:
             True if successful, False otherwise
         """
-        # If using remote and it's not read-only, push changes to remote
-        if self.remote_sync and not self.remote_sync.read_only:
-            success = self.remote_sync.update_config(self.data)
-            if not success:
-                self.logger.error("Failed to update remote configuration")
-                return False
-
-        # If we're in memory-only mode with no local file, we're done
-        if self.in_memory and not self.config_path:
+        if self._memory_only:
+            self.logger.debug("Memory-only mode: no storage backend to save to")
             return True
 
-        if not self.config_path:
-            # If no config path is set, we can't save to a file
-            self.logger.warning("No config path set, cannot save configuration")
+        if self.read_only:
+            self.logger.warning("Configuration is read-only, not saving")
             return False
 
-        # Otherwise save to local file if we have one
         try:
-            # Use lock manager to prevent race conditions
-            with self.lock_manager:
-                target_data = load_file(self.config_path) or {}
-
-                if target_data == self.data:
-                    self.logger.debug("No changes detected, not saving configuration")
-                    return True
-
-                save_file(self.config_path, self.data)
-                self.logger.debug(f"Saved configuration to {self.config_path}")
-            return True
-
-        except filelock.Timeout:
-            self.logger.error(
-                "Could not acquire lock to write config file - another process may be using it"
-            )
-            return False
+            success = self.storage_backend.save(self.data)
+            if success:
+                self.logger.debug("Saved configuration to storage backend")
+            else:
+                self.logger.error("Failed to save configuration to storage backend")
+            return success
         except Exception as e:
             self.logger.error(f"Error saving configuration: {e}")
             return False
-
-        return True
 
     def get_all(self) -> Dict[str, Any]:
         """Get all *effective* configuration data (including overrides).
@@ -415,7 +302,7 @@ class NekoConfigManager:
         """Get an *effective* configuration value (including overrides).
 
         Args:
-            key: The configuration key (JMESPath expressions for nested values)
+            key: The configuration key (dot notation for nested values)
             default: Default value to return if key is not found
 
         Returns:
@@ -427,15 +314,173 @@ class NekoConfigManager:
         # Use the utility which handles nested keys
         return get_nested_value(self.data, key, default)
 
+    # Type-safe convenience methods for accessing configuration values
+    @overload
+    def get_typed(self, key: str, default: None = None) -> Any: ...
+
+    @overload
+    def get_typed(self, key: str, default: T) -> T: ...
+
+    def get_typed(self, key: str, default: Optional[T] = None) -> Union[Any, T]:
+        """Get a configuration value with type preservation.
+
+        Args:
+            key: The configuration key (dot notation for nested values)
+            default: Default value to return if key is not found
+
+        Returns:
+            The configuration value (preserving the type of default if provided)
+        """
+        value = self.get(key, default)
+        if default is not None and value is not None:
+            try:
+                # Try to convert the value to the same type as default
+                value_type = type(default)
+                return value_type(value)
+            except (ValueError, TypeError):
+                self.logger.warning(
+                    f"Failed to convert '{key}' to type {type(default).__name__}, using as-is"
+                )
+        return value
+
+    def get_int(self, key: str, default: Optional[int] = None) -> Optional[int]:
+        """Get an integer configuration value.
+
+        Args:
+            key: The configuration key (dot notation for nested values)
+            default: Default value to return if key is not found
+
+        Returns:
+            The integer value or default if not found/not an integer
+        """
+        value = self.get(key, default)
+        if value is None:
+            return default
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            self.logger.warning(f"Value for '{key}' is not a valid integer, using default")
+            return default
+
+    def get_float(self, key: str, default: Optional[float] = None) -> Optional[float]:
+        """Get a float configuration value.
+
+        Args:
+            key: The configuration key (dot notation for nested values)
+            default: Default value to return if key is not found
+
+        Returns:
+            The float value or default if not found/not a float
+        """
+        value = self.get(key, default)
+        if value is None:
+            return default
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            self.logger.warning(f"Value for '{key}' is not a valid float, using default")
+            return default
+
+    def get_bool(self, key: str, default: Optional[bool] = None) -> Optional[bool]:
+        """Get a boolean configuration value.
+
+        Args:
+            key: The configuration key (dot notation for nested values)
+            default: Default value to return if key is not found
+
+        Returns:
+            The boolean value or default if not found/not a boolean
+        """
+        value = self.get(key, default)
+        if value is None:
+            return default
+
+        if isinstance(value, bool):
+            return value
+
+        # Handle string values
+        if isinstance(value, str):
+            if value.lower() in ("true", "yes", "1", "on"):
+                return True
+            if value.lower() in ("false", "no", "0", "off"):
+                return False
+
+        # Handle numeric values
+        try:
+            return bool(int(value))
+        except (ValueError, TypeError):
+            self.logger.warning(f"Value for '{key}' is not a valid boolean, using default")
+            return default
+
+    def get_str(self, key: str, default: Optional[str] = None) -> Optional[str]:
+        """Get a string configuration value.
+
+        Args:
+            key: The configuration key (dot notation for nested values)
+            default: Default value to return if key is not found
+
+        Returns:
+            The string value or default if not found
+        """
+        value = self.get(key, default)
+        if value is None:
+            return default
+        return str(value)
+
+    def get_list(self, key: str, default: Optional[List] = None) -> Optional[List]:
+        """Get a list configuration value.
+
+        Args:
+            key: The configuration key (dot notation for nested values)
+            default: Default value to return if key is not found
+
+        Returns:
+            The list value or default if not found/not a list
+        """
+        value = self.get(key, default)
+        if value is None:
+            return default
+
+        if isinstance(value, list):
+            return value
+
+        self.logger.warning(f"Value for '{key}' is not a list, using default")
+        return default
+
+    def get_dict(self, key: str, default: Optional[Dict] = None) -> Optional[Dict]:
+        """Get a dictionary configuration value.
+
+        Args:
+            key: The configuration key (dot notation for nested values)
+            default: Default value to return if key is not found
+
+        Returns:
+            The dictionary value or default if not found/not a dictionary
+        """
+        value = self.get(key, default)
+        if value is None:
+            return default
+
+        if isinstance(value, dict):
+            return value
+
+        self.logger.warning(f"Value for '{key}' is not a dictionary, using default")
+        return default
+
     def set(self, key: str, value: Any) -> None:
         """Set a configuration value in the *effective* configuration.
 
         This change will be persisted on the next `save()`.
 
         Args:
-            key: The configuration key (JMESPath expressions for nested values)
+            key: The configuration key (dot notation for nested values)
             value: The value to set
         """
+
+        if self.read_only:
+            self.logger.warning("Configuration is read-only, not setting value")
+            return
+
         # Make a copy of current state
         old_data = copy.deepcopy(self.data)
 
@@ -448,17 +493,10 @@ class NekoConfigManager:
 
         # if event emission is disabled, skip emitting events
         if self.event_disabled:
-            return
+            return True
 
-        changes = []
-
-        # Detect what kind of change occurred and emit events
-        changes.append(ChangeTracker.detect_single_change(old_data, self.data, key))
-
-        # Append a global change event
-        changes.append(ConfigChange(ChangeType.CHANGE, "*", old_data, self.data))
-
-        # Emit events for the change using our centralized function
+        # Detect changes between configurations
+        changes = ChangeTracker.detect_changes(old_data, self.data)
         emit_change_events(self, changes)
 
     def delete(self, key: str) -> bool:
@@ -467,63 +505,31 @@ class NekoConfigManager:
         This change will be persisted on the next `save()`.
 
         Args:
-            key: The configuration key (JMESPath expressions for nested values)
+            key: The configuration key (dot notation for nested values)
 
         Returns:
             True if the key was deleted, False if it didn't exist
         """
-
-        # Check if key exists before attempting delete
-        _sentinel = object()
-        old_value = get_nested_value(self.data, key, default=_sentinel)
-        if old_value is _sentinel:
-            return False  # Key doesn't exist in effective config
-
-        # Make a copy of current state
-        old_data = copy.deepcopy(self.data)
-
-        # Navigate to the parent of the target key
-        parts = key.split(".")
-        data_ptr = self.data  # Operate on effective data
-
-        for i, part in enumerate(parts[:-1]):
-            # This check should ideally not fail if the key exists, but added for safety
-            if not isinstance(data_ptr, dict) or part not in data_ptr:
-                self.logger.error(
-                    f"Inconsistency found while navigating to delete key '{key}' at part '{part}'. Aborting delete."
-                )
-                return False
-            data_ptr = data_ptr[part]
-
-        # Check if parent is a dict and the final key exists
-        if not isinstance(data_ptr, dict) or parts[-1] not in data_ptr:
-            # This should also not happen if the initial check passed
-            self.logger.error(
-                f"Inconsistency found: key '{key}' existed but parent path is not a dict or final key missing."
-            )
+        if self.read_only:
+            self.logger.warning("Configuration is read-only, not deleting value")
             return False
 
-        # Delete the key
-        del data_ptr[parts[-1]]
+        # Make a copy of current state for change detection
+        old_data = copy.deepcopy(self.data)
 
-        # if event emission is disabled, skip emitting events
-        if self.event_disabled:
-            return True
+        # Use the utility function to delete the nested value
+        success, old_value = delete_nested_value(self.data, key)
 
-        changes = []
-        # Create the change object manually since we know it's a deletion
-        changes.append(ConfigChange(ChangeType.DELETE, key, old_value=old_value, new_value=None))
+        if not success:
+            return False  # Key didn't exist
 
-        # Append a global change event
-        changes.append(
-            ConfigChange(
-                ChangeType.CHANGE,
-                old_value=old_data,
-                new_value=self.data,
-            )
-        )
-        # Emit events for the deletion using our centralized function
-        emit_change_events(self, changes)
+        # Emit events if enabled
+        if not self.event_disabled:
+            changes = [
+                ConfigChange(ChangeType.DELETE, key, old_value=old_value, new_value=None),
+                ConfigChange(ChangeType.CHANGE, old_value=old_data, new_value=self.data),
+            ]
+            emit_change_events(self, changes)
 
         return True
 
@@ -538,7 +544,7 @@ class NekoConfigManager:
             True if the configuration was replaced, False if no changes were made
 
         """
-        if data == self.data:
+        if not data or data == self.data:
             return False
 
         old_data = copy.deepcopy(self.data)
@@ -556,14 +562,21 @@ class NekoConfigManager:
 
         return True
 
-    def update(self, data: Dict[str, Any]) -> None:
-        """Update multiple configuration values in the *effective* configuration.
+    def update(self, data: Dict[str, Any]) -> bool:
+        """Update multiple configuration values in the *effective* configuration (no deletion).
 
         This change will be persisted on the next `save()`.
 
         Args:
             data: Dictionary of configuration values to update
+
+        Returns:
+            True if the configuration was updated, False if no changes were made
         """
+
+        if not data or data == self.data:
+            return False
+
         # Make deep copies to prevent mutations
         old_data = copy.deepcopy(self.data)
 
@@ -572,11 +585,13 @@ class NekoConfigManager:
 
         # if event emission is disabled, skip emitting events
         if self.event_disabled:
-            return
+            return True
 
         # Detect changes between configurations
         changes = ChangeTracker.detect_changes(old_data, self.data)
         emit_change_events(self, changes)
+
+        return True
 
     def on_change(self, path_pattern: str, priority: int = 100):
         """Register a handler for changes to a specific configuration path.
@@ -616,51 +631,12 @@ class NekoConfigManager:
         """
         return on_event(self.event_pipeline, event_type, path_pattern, priority)
 
-    def reload(self) -> Dict[str, Any]:
-        """Reload configuration from source (file or remote).
-
-        For remote configuration, this will trigger a refresh from the server.
-        For local files, this will reload from disk.
-
-        Returns:
-            The updated configuration
-        """
-        updated_data = {}
-
-        # If using remote sync, trigger a reload
-        if self.remote_sync:
-            if self.remote_sync.read_only:
-                # If we're in read-only mode, just re-fetch
-                updated_data = self.load()
-            else:
-                # Otherwise trigger reload on the server
-                if self.remote_sync.reload_remote_config():
-                    updated_data = self.remote_sync.get_config()
-                else:
-                    self.logger.error("Failed to trigger reload from remote server")
-                    updated_data = self.data
-        else:
-            # Standard local reload
-            updated_data = self.load()
-
-        self.event_pipeline.emit(
-            EventType.RELOAD,
-            old_value=self.data,
-            new_value=updated_data,
-            config_data=updated_data,
-            ignore=self.event_disabled,
-        )
-
-        self.data = updated_data
-
-        return updated_data
-
-    def validate_schema(self, data: Optional[Dict[str, Any]] = None) -> bool:
+    def validate_schema(self, data: Optional[Dict[str, Any]] = None) -> List[str]:
         """Validate the configuration against the schema.
         Args:
             data: Optional data to validate (if None, uses the effective configuration)
         Returns:
-            True if valid, False otherwise
+            List of validation error messages (empty if valid)
         """
 
         if not self.validator:
@@ -705,8 +681,10 @@ class NekoConfigManager:
         """
         from ..event.transaction import TransactionManager
 
+        read_only = self.read_only
+
         class TransactionContext:
-            def __init__(self, config: "NekoConfigManager"):
+            def __init__(self, config: "NekoConf"):
                 self.config = config
                 self.transaction = None
 
@@ -718,8 +696,8 @@ class NekoConfigManager:
                 if exc_type is None:  # No exception occurred
                     # Apply all changes at once
                     self.transaction.commit()
-                    # Save if in non-memory mode with a file path
-                    if not self.config.in_memory and self.config.config_path:
+                    # Save if storage backend supports writes
+                    if self.config.storage_backend and not read_only:
                         self.config.save()
                 return False  # Don't suppress exceptions
 

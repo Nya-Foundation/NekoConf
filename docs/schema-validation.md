@@ -32,8 +32,8 @@ NekoConf supports validating your configuration against a JSON Schema (or YAML/T
 2. **Initialize NekoConf with the schema:**
 
 ```python
-from nekoconf import NekoConfigManager
-config = NekoConfigManager("config.yaml", schema_path="schema.json")
+from nekoconf import NekoConf
+config = NekoConf("config.yaml", schema_path="schema.json")
 ```
 
 3. **Validate your configuration:**

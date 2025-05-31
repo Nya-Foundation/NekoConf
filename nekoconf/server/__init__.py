@@ -16,11 +16,11 @@ except ImportError:
 
 # Only import if dependencies are available
 if HAS_SERVER_DEPS:
-    from .app import NekoConfigServer
+    from .app import NekoConfOrchestrator
 else:
     # Define a placeholder class that raises ImportError when instantiated
-    class NekoConfigServer:
-        """Placeholder class for NekoConfigServer.
+    class NekoConfOrchestrator:
+        """Placeholder class for NekoConfOrchestrator.
 
         This raises an informative error when server features are used without
         server dependencies installed.
@@ -33,4 +33,4 @@ else:
             )
 
 
-__all__ = ["NekoConfigServer", "HAS_SERVER_DEPS"]
+__all__ = ["NekoConfOrchestrator", "HAS_SERVER_DEPS"]
