@@ -2,7 +2,6 @@
 
 from .base import StorageBackend, StorageError
 from .file import FileStorageBackend
-from .remote import RemoteStorageBackend
 
 try:
     import requests

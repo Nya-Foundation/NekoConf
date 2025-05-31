@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, mock_open, patch
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
-from starlette.responses import JSONResponse
+from starlette.responses import HTMLResponse, JSONResponse
 
 from nekoconf.server.auth import AuthMiddleware, NekoAuthGuard
 
@@ -186,14 +186,15 @@ class TestAuthMiddleware:
     def test_root_path_no_auth(self, authenticated_app):
         """Test accessing the root path without authentication."""
         response = authenticated_app.get("/")
-        assert response.status_code == 403
-        assert "Unauthorized" in response.text
+        assert response.status_code == 401
+        assert "Enter your API key to access the service" in response.text
 
     @pytest.mark.asyncio
     async def test_login_page_redirect(self, auth_middleware):
         """Test generating a login page."""
         request = MagicMock()
         request.url.path = "/test"
+        request.scope = {"root_path": "http://localhost:8000"}
 
         # Use patch to mock the importlib.resources.files function
         html_content = "<html>{{ return_path }}</html>"
@@ -206,9 +207,9 @@ class TestAuthMiddleware:
                 mock_file_path
             )
 
-            # Generate the login page
+            # Generate the login page HTMLResponse
             response = auth_middleware._generate_login_page(request)
 
             # Check response content, redirection, and status code
-            assert response.status_code == 302
-            assert response.headers["Location"] == "/test/login.html"
+            assert response.status_code == 401
+            assert isinstance(response, HTMLResponse)
