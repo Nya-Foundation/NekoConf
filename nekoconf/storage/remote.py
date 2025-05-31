@@ -3,7 +3,7 @@
 import json
 import threading
 import time
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, List, Optional
 
 import requests
 import websocket

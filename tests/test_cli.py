@@ -1,19 +1,15 @@
 """Tests for the command-line interface."""
 
+import argparse
 import json
 import sys
-from unittest.mock import MagicMock, patch, call
 from pathlib import Path
-import argparse
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 import yaml
 
 from nekoconf.cli.main import (
-    create_parser,
-    create_config,
-    format_output,
-    str2bool,
     cmd_connect,
     cmd_delete,
     cmd_get,
@@ -21,7 +17,11 @@ from nekoconf.cli.main import (
     cmd_server,
     cmd_set,
     cmd_validate,
+    create_config,
+    create_parser,
+    format_output,
     main_cli,
+    str2bool,
 )
 
 
