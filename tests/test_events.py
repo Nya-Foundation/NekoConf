@@ -135,7 +135,6 @@ class TestEventHandler:
         assert args["config_data"] == {"database": {"host": "db.example.com"}}
         assert args["custom_param"] == "test"
 
-    @pytest.mark.asyncio
     def test_handler_is_async(self):
         """Test that is_async is correctly determined based on the callback type."""
 

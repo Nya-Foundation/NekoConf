@@ -1006,13 +1006,14 @@ def test_cmd_server_without_config(mock_orchestrator):
     args.api_key = "test-key"
     args.read_only = True
     args.event = False
+    args.app_name = None  # This will default to "default"
 
     result = cmd_server(args)
 
     # Should create orchestrator with empty apps dict
     mock_orchestrator.assert_called_once()
     call_args = mock_orchestrator.call_args
-    assert call_args[1]["apps"] == {}
+    assert call_args[1]["apps"] == {"default": None}
     assert call_args[1]["api_key"] == "test-key"
     assert call_args[1]["read_only"] == True
 
@@ -1302,6 +1303,7 @@ def test_cmd_server_with_all_options(mock_orchestrator):
     args.api_key = "test-key"
     args.read_only = True
     args.event = True
+    args.app_name = "my-app"  # Set explicit app name
 
     with patch("nekoconf.cli.main.create_config") as mock_create_config:
         result = cmd_server(args)
@@ -1314,7 +1316,7 @@ def test_cmd_server_with_all_options(mock_orchestrator):
         # Verify orchestrator was configured correctly
         mock_orchestrator.assert_called_once()
         call_args = mock_orchestrator.call_args[1]
-        assert "default" in call_args["apps"]
+        assert "my-app" in call_args["apps"]
         assert call_args["api_key"] == "test-key"
         assert call_args["read_only"] == True
 
