@@ -137,7 +137,7 @@ function dashboardApp() {
     async loadApps() {
       try {
         this.loading = true;
-        const response = await fetch("/api/apps");
+        const response = await fetch(window.location.href + "api/apps");
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -320,7 +320,7 @@ function dashboardApp() {
 
     async updateStats() {
       try {
-        const response = await fetch("/health");
+        const response = await fetch(window.location.href + "health");
         if (response.ok) {
           const health = await response.json();
           this.stats.serverStatus = health.status === "ok" ? "Online" : "Offline";
@@ -351,7 +351,7 @@ function dashboardApp() {
     navigateToApp(appName) {
       // Add loading state for better UX
       this.showNotification("info", `Opening ${appName}...`);
-      window.location.href = `/${appName}`;
+      window.location.href = `${appName}`;
     },
 
     getAppDescription(app) {
@@ -407,7 +407,7 @@ function dashboardApp() {
         ...options,
       };
 
-      const response = await fetch(url, config);
+      const response = await fetch(window.location.href + url, config);
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));

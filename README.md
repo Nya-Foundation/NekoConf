@@ -23,6 +23,9 @@
 
 ## 🐱 What is NekoConf?
 
+> [!WARNING]
+> This project is currently under active development. Documentation may not reflect the latest changes. If you encounter unexpected behavior, please consider using a previous stable version or report issues on our GitHub repository.
+
 NekoConf is a dynamic and flexible configuration management system for Python applications. It simplifies handling configuration files (YAML, JSON, TOML) and provides real-time updates, environment variable overrides, and schema validation.
 
 | Feature                      | Description                                                                 |
@@ -483,17 +486,6 @@ NekoConf offers comprehensive documentation for all its core features and advanc
 | [Remote Configuration](docs/remote-configuration.md) | Connecting to remote NekoConf servers, synchronization, and deployment patterns. |
 
 For installation, quick start, and integration examples, see above sections. For detailed guides, visit the linked docs.
-
-## 👩‍💻 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
 
 ## ❤️ Discord Community
 
