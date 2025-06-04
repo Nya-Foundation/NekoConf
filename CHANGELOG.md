@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.1.2 (2025-06-04)
+
+### Bug Fixes
+
+- Fix frontend js logic for app name parsing, and fix storage endpoint update callback logic
+  ([`0d89ef7`](https://github.com/Nya-Foundation/NekoConf/commit/0d89ef7f81dc1fab03aec060fad0dd73cebefd8b))
+
+
 ## v1.1.1 (2025-05-31)
 
 ### Bug Fixes
