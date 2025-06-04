@@ -2,7 +2,7 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
 class StorageBackend(ABC):
@@ -20,7 +20,9 @@ class StorageBackend(ABC):
             logger: Optional logger instance for logging messages
         """
         self.logger = logger or logging.getLogger(__name__)
-        self._change_callback = None
+        
+        # List of callback functions to be called on configuration changes
+        self.callbacks: List[callable] = []
 
     def __str__(self):
         return f"{self.__class__.__name__}(backend)"
@@ -83,17 +85,27 @@ class StorageBackend(ABC):
         """
         return self.load()
 
-    def set_change_callback(self, callback: Any) -> None:
-        """Set a callback to be called when configuration changes.
+    def set_change_callback(self, callback: callable) -> None:
+        """Register a callback to be called on configuration changes.
 
         Args:
-            callback: Function to call on configuration changes
+            callback: Function to call when configuration changes
         """
-        pass
+        if callable(callback):
+            self.callbacks.append(callback)
+        else:
+            self.logger.warning(f"Provided callback is not callable, got: {type(callback)} instead")
 
-    def unset_change_callback(self, callback: Any) -> None:
-        """Unset the change callback."""
-        pass
+    def unset_change_callback(self, callback: callable) -> None:
+        """Unregister a previously set change callback.
+
+        Args:
+            callback: Function to remove from the change callbacks
+        """
+        if callback in self.callbacks:
+            self.callbacks.remove(callback)
+        else:
+            self.logger.warning(f"Provided callback is not callable, got: {type(callback)} instead")
 
 
 class StorageError(Exception):

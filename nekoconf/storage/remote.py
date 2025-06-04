@@ -3,7 +3,7 @@
 import json
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import requests
 import websocket
@@ -51,8 +51,6 @@ class RemoteStorageBackend(StorageBackend):
         # Connection state
         self._connected = False
 
-        self._change_callbacks: List[callable] = []
-
         # API and WebSocket URLs for the specific app
         self._ws_url = f"{self.remote_url.replace('http://', 'ws://').replace('https://', 'wss://')}/ws/{self.app_name}"
         self._api_url = f"{self.remote_url}/api/apps/{self.app_name}/config"
@@ -66,27 +64,7 @@ class RemoteStorageBackend(StorageBackend):
     def __str__(self):
         return f"{self.__class__.__name__}(remote_url={self.remote_url}, app_name={self.app_name})"
 
-    def set_change_callback(self, callback: callable) -> None:
-        """Register a callback to be called on configuration changes.
-
-        Args:
-            callback: Function to call when configuration changes
-        """
-        if callable(callback):
-            self._change_callbacks.append(callback)
-        else:
-            raise ValueError("Callback must be a callable function")
-
-    def unset_change_callback(self, callback: callable) -> None:
-        """Unregister a previously set change callback.
-
-        Args:
-            callback: Function to remove from the change callbacks
-        """
-        if callback in self._change_callbacks:
-            self._change_callbacks.remove(callback)
-        else:
-            raise ValueError("Callback not found in registered callbacks")
+    
 
     def load(self) -> Dict[str, Any]:
         """Load configuration data from remote orchestrator.
@@ -319,9 +297,9 @@ class RemoteStorageBackend(StorageBackend):
                 )
 
                 # Notify NekoConf of the change
-                if self._change_callbacks:
+                if self.callbacks:
                     try:
-                        for callback in self._change_callbacks:
+                        for callback in self.callbacks:
                             callback(config_data=config_data)
                             self.logger.debug(
                                 f"Called change callback {callback.__name__} for app '{self.app_name}'"

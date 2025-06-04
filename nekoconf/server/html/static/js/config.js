@@ -3,19 +3,6 @@
  * Refactored for new backend API requirements with clean architecture
  */
 
-// API Configuration
-const API_CONFIG = {
-  BASE_URL: window.location.origin,
-  ENDPOINTS: {
-    CONFIG: (appName) => `/api/apps/${appName}/config`,
-    CONFIG_PATH: (appName, path) => `/api/apps/${appName}/config/${path}`,
-    VALIDATE: (appName) => `/api/apps/${appName}/validate`,
-  },
-  HEADERS: {
-    "Content-Type": "application/json",
-  },
-};
-
 // Utility Functions
 const utils = {
   debounce(func, wait) {
@@ -24,6 +11,17 @@ const utils = {
       clearTimeout(timeout);
       timeout = setTimeout(() => func.apply(this, args), wait);
     };
+  },
+
+  // Parses the app name from the URL
+  detectAppContext() {
+    const pathes = window.location.pathname.split("/");
+    return pathes[pathes.length - 1] || "default";
+  },
+
+  detectNekoConfContext() {
+    const pathes = window.location.pathname.split("/");
+    return pathes.slice(0, -1).join("/") + "/";
   },
 
   formatTime(timestamp) {
@@ -116,6 +114,19 @@ const utils = {
       console.error(`Error formatting ${format}:`, error);
       return "";
     }
+  },
+};
+
+// API Configuration
+const API_CONFIG = {
+  BASE_URL: utils.detectNekoConfContext(),
+  ENDPOINTS: {
+    CONFIG: (appName) => `${API_CONFIG.BASE_URL}api/apps/${appName}/config`,
+    CONFIG_PATH: (appName, path) => `${API_CONFIG.BASE_URL}api/apps/${appName}/config/${path}`,
+    VALIDATE: (appName) => `${API_CONFIG.BASE_URL}api/apps/${appName}/validate`,
+  },
+  HEADERS: {
+    "Content-Type": "application/json",
   },
 };
 
@@ -519,7 +530,7 @@ function configApp() {
     // Initialization
     async init() {
       try {
-        this.detectAppContext();
+        this.handleAppContext();
         this.initTheme();
         this.setupKeyboardShortcuts();
 
@@ -540,14 +551,9 @@ function configApp() {
       }
     },
 
-    detectAppContext() {
-      const path = window.location.pathname;
-      const match = path.match(/^\/(?:app\/)?([^\/]+)$/);
-
-      if (match && match[1] !== "api" && match[1] !== "static") {
-        this.currentAppName = match[1];
-        document.title = `NekoConf - ${this.currentAppName}`;
-      }
+    handleAppContext() {
+      this.currentAppName = utils.detectAppContext();
+      document.title = `NekoConf - ${this.currentAppName}`;
     },
 
     // Configuration Management

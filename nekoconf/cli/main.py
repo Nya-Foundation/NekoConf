@@ -13,10 +13,71 @@ from nekoconf import HAS_REMOTE_DEPS, HAS_SCHEMA_DEPS, HAS_SERVER_DEPS
 from nekoconf._version import __version__
 from nekoconf.core.config import NekoConf
 from nekoconf.server.app import NekoConfOrchestrator
-from nekoconf.storage import RemoteStorageBackend
 from nekoconf.utils.helper import getLogger, load_file, parse_value, save_file
 
 LOGGER = getLogger("nekoconf.cli.main")
+
+BUILT_IN_TEMPLATES = {
+    "empty": {
+        "name": "Empty Configuration",
+        "description": "Start with a blank configuration",
+        "icon": "📄",
+        "data": "{}",
+        "format": "json",
+    },
+    "web-app": {
+        "name": "Web Application",
+        "description": "Frontend application with server and API settings",
+        "icon": "🌐",
+        "data": 
+            {
+                "app": {"name": "web-app", "version": "1.0.0", "port": 3000},
+                "server": {"host": "localhost", "ssl": False},
+                "api": {"baseUrl": "/api/v1", "timeout": 5000},
+            },
+            
+        "format": "json",
+    },
+    "api-service": {
+        "name": "API Service",
+        "description": "Backend service with database and auth configuration",
+        "icon": "🔌",
+        "data": 
+            {
+                "service": {"name": "api-service", "version": "1.0.0", "port": 8000},
+                "database": {"host": "localhost", "port": 5432, "name": "app_db"},
+                "auth": {"jwt_secret": "your-secret-key", "expires_in": "24h"},
+            },
+            
+        "format": "json",
+    },
+    # Add more templates as needed
+    "microservice": {
+        "name": "Microservice",
+        "description": "Containerized service with logging and metrics",
+        "icon": "🐳",
+        "data": {
+            "service": {"name": "microservice", "version": "1.0.0", "port": 8080},
+            "logging": {"level": "info", "format": "json"},
+            "metrics": {"enabled": True, "endpoint": "/metrics"},
+            "health": {"endpoint": "/health", "timeout": 30},
+        },
+
+        "format": "json",
+    },
+    "default": {
+        "name": "Default Configuration",
+        "description": "Basic configuration template",
+        "icon": "⚙️",
+        "data": {
+            "app": {"name": "default-app", "version": "1.0.0"},
+            "settings": {"debug": True, "log_level": "info"},
+            },
+            
+        "format": "json",
+    },
+    
+}
 
 
 def str2bool(x):
@@ -116,8 +177,8 @@ def create_parser() -> argparse.ArgumentParser:
 
     # Init command
     init = subparsers.add_parser("init", help="Initialize new configuration")
-    init.add_argument("config", help="Configuration file to create")
-    init.add_argument("--template", help="Template file to use")
+    init.add_argument("config", help="Name of the configuration file to create")
+    init.add_argument("--template", default="default", help="Configuration template file to use [empty, web-app, api-service, microservice, default]")
 
     return parser
 
@@ -303,16 +364,8 @@ def cmd_init(args: argparse.Namespace) -> int:
             print(f"Configuration file already exists: {config_path}")
             return 1
 
-        if args.template:
-            template_path = Path(args.template)
-            if not template_path.exists():
-                print(f"Template file not found: {template_path}")
-                return 1
-            data = load_file(template_path)
-        else:
-            data = {}
-
-        save_file(config_path, data)
+        template = BUILT_IN_TEMPLATES.get(args.template, BUILT_IN_TEMPLATES["default"])
+        save_file(config_path, template.get("data", "{}"))
         print(f"Created configuration file: {config_path}")
         return 0
     except Exception as e:

@@ -153,13 +153,13 @@ def save_file(path: Union[str, Path], data: Any, logger: Optional[logging.Logger
             # Save as YAML
             with open(path, "w") as f:
                 if yaml:
-                    yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+                    yaml.dump(data, f, default_flow_style=False, sort_keys=False, indent=2)
                 else:
-                    json.dump(data, f, indent=2)  # Fallback to JSON
+                    json.dump(data, f, indent=2, ensure_ascii=False)  # Fallback to JSON
         elif path.suffix.lower() == ".json":
             # Save as JSON
             with open(path, "w") as f:
-                json.dump(data, f, indent=2)
+                json.dump(data, f, indent=2, ensure_ascii=False)
         elif path.suffix.lower() == ".toml":
             # Save as TOML
             try:
@@ -177,9 +177,9 @@ def save_file(path: Union[str, Path], data: Any, logger: Optional[logging.Logger
             # Default to YAML for unknown extensions
             with open(path, "w") as f:
                 if yaml:
-                    yaml.dump(data, f, default_flow_style=False)
+                    yaml.dump(data, f, default_flow_style=False, sort_keys=False, indent=2)
                 else:
-                    json.dump(data, f, indent=2)  # Fallback to JSON
+                    json.dump(data, f, indent=2, ensure_ascii=False)  # Fallback to JSON
 
         return True
     except Exception as e:
