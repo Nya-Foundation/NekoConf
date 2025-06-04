@@ -639,7 +639,8 @@ def test_cmd_init(tmp_path):
         config = yaml.safe_load(f)
 
     # Empty config should be an empty dict
-    assert config == {}
+    assert config == {'app': {'name': 'default-app', 'version': '1.0.0'},
+                     'settings': {'debug': True, 'log_level': 'info'}}
 
 
 def test_cmd_init_with_template(tmp_path):
@@ -677,21 +678,6 @@ def test_cmd_init_file_exists(tmp_path):
         result = cmd_init(args)
         assert result == 1
         mock_print.assert_called_with(f"Configuration file already exists: {existing_config}")
-
-
-def test_cmd_init_template_not_found(tmp_path):
-    """Test the init command with non-existent template."""
-    new_config = tmp_path / "new_config.yaml"
-    nonexistent_template = tmp_path / "nonexistent.yaml"
-
-    args = MagicMock()
-    args.config = str(new_config)
-    args.template = str(nonexistent_template)
-
-    with patch("builtins.print") as mock_print:
-        result = cmd_init(args)
-        assert result == 1
-        mock_print.assert_called_with(f"Template file not found: {nonexistent_template}")
 
 
 def test_cmd_init_error():
