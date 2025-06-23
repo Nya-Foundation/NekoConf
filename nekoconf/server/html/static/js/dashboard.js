@@ -185,7 +185,7 @@ function dashboardApp() {
           format: template?.format || "json",
         };
 
-        const response = await this.apiRequest("/api/apps", {
+        const response = await this.apiRequest("api/apps", {
           method: "POST",
           body: JSON.stringify(requestBody),
         });
@@ -209,11 +209,11 @@ function dashboardApp() {
     async duplicateApp(appName) {
       try {
         // Get the original app's configuration
-        const configResponse = await this.apiRequest(`/api/apps/${appName}/config`);
+        const configResponse = await this.apiRequest(`api/apps/${appName}/config`);
         const config = await configResponse.json();
 
         // Get app info for description
-        const appResponse = await this.apiRequest(`/api/apps/${appName}`);
+        const appResponse = await this.apiRequest(`api/apps/${appName}`);
         const appInfo = await appResponse.json();
 
         // Generate unique name
@@ -227,7 +227,7 @@ function dashboardApp() {
           format: "json",
         };
 
-        await this.apiRequest("/api/apps", {
+        await this.apiRequest("api/apps", {
           method: "POST",
           body: JSON.stringify(requestBody),
         });
@@ -246,7 +246,7 @@ function dashboardApp() {
       if (!confirmed) return;
 
       try {
-        await this.apiRequest(`/api/apps/${appName}`, {
+        await this.apiRequest(`api/apps/${appName}`, {
           method: "DELETE",
         });
 
@@ -297,7 +297,7 @@ function dashboardApp() {
           return;
         }
 
-        await this.apiRequest(`/api/apps/${this.editApp.originalName}/metadata`, {
+        await this.apiRequest(`api/apps/${this.editApp.originalName}/metadata`, {
           method: "PATCH",
           body: JSON.stringify(requestBody),
         });
@@ -464,7 +464,7 @@ function dashboardApp() {
         const allConfigs = {};
 
         for (const app of this.apps) {
-          const response = await this.apiRequest(`/api/apps/${app.name}/config`);
+          const response = await this.apiRequest(`api/apps/${app.name}/config`);
           if (response.ok) {
             allConfigs[app.name] = await response.json();
           }
