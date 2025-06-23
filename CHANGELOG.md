@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.1.3 (2025-06-23)
+
+### Bug Fixes
+
+- Fix config dashboard bug.. update ws reconnect logic
+  ([`b254483`](https://github.com/Nya-Foundation/NekoConf/commit/b25448366e3616a0f2412b514a6c6917aa383060))
+
+
 ## v1.1.2 (2025-06-04)
 
 ### Bug Fixes
