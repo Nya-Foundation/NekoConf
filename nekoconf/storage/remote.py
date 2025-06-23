@@ -23,8 +23,8 @@ class RemoteStorageBackend(StorageBackend):
         remote_url: str,
         app_name: str = "default",
         api_key: Optional[str] = None,
-        reconnect_attempts: int = 20,
-        reconnect_delay: float = 1.0,
+        reconnect_attempts: int = 0,
+        reconnect_delay: float = 5.0,
         connect_timeout: float = 5.0,
         **kwargs,
     ):
@@ -240,7 +240,6 @@ class RemoteStorageBackend(StorageBackend):
     def _websocket_thread(self) -> None:
         """WebSocket connection thread function."""
         reconnect_count = 0
-        current_delay = self.reconnect_delay
 
         while self._running:
             try:
@@ -271,10 +270,9 @@ class RemoteStorageBackend(StorageBackend):
                     break
 
                 self.logger.info(
-                    f"Reconnecting to app '{self.app_name}' in {current_delay:.1f}s (attempt {reconnect_count})"
+                    f"Reconnecting to app '{self.app_name}' in {self.reconnect_delay:.1f}s (attempt {reconnect_count})"
                 )
-                time.sleep(current_delay)
-                current_delay = min(current_delay * 2, 60.0)
+                time.sleep(self.reconnect_delay)
 
             except Exception as e:
                 self.logger.error(f"WebSocket error for app '{self.app_name}': {e}")
