@@ -7,9 +7,8 @@ generating appropriate events for path-based modifications.
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple
 
-from .pipeline import EventType
 from ..utils.helper import getLogger
-
+from .pipeline import EventType
 
 if TYPE_CHECKING:
     from ..core.config import NekoConf
