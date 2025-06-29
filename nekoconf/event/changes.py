@@ -7,8 +7,9 @@ generating appropriate events for path-based modifications.
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple
 
-from ..utils.helper import getLogger
 from .pipeline import EventType
+from ..utils.helper import getLogger
+
 
 if TYPE_CHECKING:
     from ..core.config import NekoConf
@@ -203,6 +204,6 @@ def emit_change_events(config: "NekoConf", changes: List[ConfigChange]) -> None:
 
         if change.path != "*":
             logger.debug(
-                f"Emitted {event_type.value} event for path '{change.path}' "
-                f"from '{change.old_value}' to '{change.new_value}'"
+                f"Emitted {event_type.value.upper()} event for path '{change.path}' "
+                f"from '{change.old_value}' to '{change.new_value }'"
             )

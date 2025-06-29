@@ -4,9 +4,8 @@ This module provides functionality to override configuration values with
 environment variables using various strategies and patterns.
 """
 
-import logging
 import os
-import re
+import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 from .helper import get_nested_value, getLogger, parse_value, set_nested_value
@@ -87,7 +86,7 @@ class EnvOverrideHandler:
         if applied:
             error_msg = f" with {errors} errors" if errors else ""
             self.logger.debug(f"Applied {applied} environment overrides{error_msg}")
-
+            
         return effective_data
 
     def _apply_matching_env_vars(self, data: Dict[str, Any]) -> Tuple[int, int]:

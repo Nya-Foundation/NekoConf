@@ -4,28 +4,27 @@ An elegant, modular web interface for managing multiple configuration instances
 with real-time updates and intuitive APIs.
 """
 
+import re
+import json
 import asyncio
 import importlib.resources
-import json
-import logging
-import re
-import signal
+
 from contextlib import asynccontextmanager
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set, Union, TYPE_CHECKING
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response
-from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from nekoconf._version import __version__
 from nekoconf.core.config import NekoConf
 from nekoconf.utils.helper import getLogger, load_string
+from nekoconf.server.auth import AuthMiddleware, NekoAuthGuard
 
-from .auth import AuthMiddleware, NekoAuthGuard
+if TYPE_CHECKING:
+    from logging import Logger
 
 
 class InvalidConfigDataError(Exception):
@@ -131,7 +130,7 @@ class ConfigApp:
         name: str,
         config: NekoConf,
         description: Optional[str] = None,
-        logger: Optional[logging.Logger] = None,
+        logger: Optional["Logger"] = None,
     ):
         self.name = name
         self.description = description
@@ -184,7 +183,7 @@ class ConfigApp:
 class WebSocketManager:
     """Elegant WebSocket connection manager for real-time updates."""
 
-    def __init__(self, app_name: str, logger: Optional[logging.Logger] = None):
+    def __init__(self, app_name: str, logger: Optional["Logger"] = None):
         self.app_name = app_name
         self.logger = logger or getLogger(__name__)
         self.connections: List[WebSocket] = []
@@ -237,7 +236,7 @@ class WebSocketManager:
 class AppManager:
     """Elegant manager for multiple NekoConf app instances."""
 
-    def __init__(self, logger: Optional[logging.Logger] = None):
+    def __init__(self, logger: Optional["Logger"] = None):
         self.logger = logger or getLogger(__name__)
         self.apps: Dict[str, ConfigApp] = {}
 
@@ -369,7 +368,7 @@ class NekoConfOrchestrator:
         apps: Union[Dict[str, NekoConf], NekoConf, None] = None,
         api_key: Optional[str] = None,
         read_only: bool = False,
-        logger: Optional[logging.Logger] = None,
+        logger: Optional["Logger"] = None,
     ):
         """Initialize the configuration orchestrator.
 
@@ -400,17 +399,9 @@ class NekoConfOrchestrator:
             self.manager.create_app(name="default", config=config)
 
         # Setup FastAPI application
-        self._setup_web_resources()
         self.app = self._create_fastapi_app()
         self._setup_middleware()
         self._setup_routes()
-
-    def _setup_web_resources(self) -> None:
-        """Setup web resource directories and templates."""
-        self.www_dir = Path(importlib.resources.files("nekoconf.server") / "html")
-        self.static_dir = self.www_dir / "static"
-        if self.www_dir.exists():
-            self.templates = Jinja2Templates(directory=str(self.www_dir))
 
     def _create_fastapi_app(self) -> FastAPI:
         """Create and configure the FastAPI application."""
@@ -740,8 +731,6 @@ class NekoConfOrchestrator:
 
     def _setup_static_routes(self) -> None:
         """Setup static file serving routes."""
-        if not self.www_dir.exists():
-            return
 
         @self.app.get("/", response_class=HTMLResponse)
         async def serve_dashboard(request: Request):
