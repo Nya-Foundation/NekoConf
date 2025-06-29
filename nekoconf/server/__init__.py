@@ -7,7 +7,6 @@ Install with: pip install nekoconf[server]
 # Check for server dependencies
 try:
     import fastapi
-    import jinja2
     import uvicorn
 
     HAS_SERVER_DEPS = True

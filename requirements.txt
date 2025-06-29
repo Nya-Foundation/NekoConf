@@ -7,8 +7,6 @@ tomli-w>=1.0.0
 # Server components
 fastapi>=0.100.0
 uvicorn>=0.22.0
-jinja2>=3.0.0
-aiofiles>=23.2.1
 websockets>=10.0
 
 # Remote configuration client

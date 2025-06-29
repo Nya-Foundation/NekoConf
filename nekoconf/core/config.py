@@ -7,10 +7,7 @@ in YAML, JSON, and TOML formats using pluggable storage backends.
 import copy
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union, overload
-
-# Type variable for type hints
-T = TypeVar("T")
+from typing import Any, Dict, List, Optional, TypeVar, Union, overload
 
 from ..event.changes import ChangeTracker, ChangeType, ConfigChange, emit_change_events
 from ..event.pipeline import EventPipeline, EventType, on_change, on_event
@@ -31,8 +28,8 @@ from ..utils.helper import (
     set_nested_value,
 )
 
-if TYPE_CHECKING:
-    pass
+# Type variable for type hints
+T = TypeVar("T")
 
 
 class NekoConf:
@@ -176,7 +173,6 @@ class NekoConf:
     def _init_config(self) -> None:
         """Initialize the configuration by loading it from the storage backend."""
         if self._memory_only:
-            # For memory-only mode, data is already initialized in __init__
             self.logger.debug("Using memory-only storage with initial data")
             return
 
@@ -189,6 +185,10 @@ class NekoConf:
         except StorageError as e:
             self.logger.error(f"Failed to initialize configuration: {e}")
             self.data = {}
+
+        # load environment variable overrides if enabled
+        if self.env_handler:
+            self.env_handler.apply_overrides(self.data, in_place=True)
 
     def _handle_storage_update(self, config_data: Dict[str, Any]) -> None:
         """Handle updates from the storage backend."""
@@ -221,7 +221,6 @@ class NekoConf:
         if self._memory_only:
             self.logger.debug("Memory-only mode: no storage backend to load from")
             return self.data
-
         try:
             loaded_data = self.storage_backend.load()
             self.logger.debug("Loaded configuration from storage backend")
@@ -234,7 +233,7 @@ class NekoConf:
 
         # Use the env_handler to apply overrides
         if self.env_handler:
-            self.data = self.env_handler.apply_overrides(loaded_data, in_place=True)
+            self.data = self.env_handler.apply_overrides(loaded_data, in_place=False)
         else:
             self.data = loaded_data
 
@@ -297,6 +296,16 @@ class NekoConf:
             The entire effective configuration data as a dictionary
         """
         return self.data
+
+    def json(self) -> str:
+        """Get the *effective* configuration data as a JSON string.
+
+        Returns:
+            The effective configuration data serialized to JSON
+        """
+        import json
+
+        return json.dumps(self.data, indent=2, ensure_ascii=False)
 
     def get(self, key: Optional[str] = None, default: Any = None) -> Any:
         """Get an *effective* configuration value (including overrides).

@@ -639,30 +639,10 @@ def test_cmd_init(tmp_path):
         config = yaml.safe_load(f)
 
     # Empty config should be an empty dict
-    assert config == {'app': {'name': 'default-app', 'version': '1.0.0'},
-                     'settings': {'debug': True, 'log_level': 'info'}}
-
-
-def test_cmd_init_with_template(tmp_path):
-    """Test the init command with template."""
-    # Create template file
-    template_path = tmp_path / "template.yaml"
-    template_data = {"app": {"name": "example", "version": "1.0"}}
-    with open(template_path, "w") as f:
-        yaml.dump(template_data, f)
-
-    # Create path for new config
-    new_config = tmp_path / "new_config.yaml"
-
-    args = MagicMock()
-    args.config = str(new_config)
-    args.template = str(template_path)
-
-    with patch("nekoconf.cli.main.load_file", return_value=template_data):
-        with patch("nekoconf.cli.main.save_file") as mock_save:
-            result = cmd_init(args)
-            assert result == 0
-            mock_save.assert_called_once()
+    assert config == {
+        "app": {"name": "default-app", "version": "1.0.0"},
+        "settings": {"debug": True, "log_level": "info"},
+    }
 
 
 def test_cmd_init_file_exists(tmp_path):

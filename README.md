@@ -41,11 +41,8 @@ NekoConf is a dynamic and flexible configuration management system for Python ap
 > [!TIP]
 > NekoConf is ideal for applications with complex configuration needs, microservice architectures, or any scenario where you need to update configuration without service restarts.
 
-> [!NOTE]
-> This project is currently in beta. We welcome feedback and contributions!
-
 ## 🛠️ Prerequisites
-- Python 3.11 or higher
+- Python 3.10 or higher
 - Docker (optional, for containerized deployment)
 
 ## 📦 Installation
@@ -53,16 +50,16 @@ NekoConf is a dynamic and flexible configuration management system for Python ap
 NekoConf follows a modular design with optional dependencies for different features:
 
 ```bash
-# Basic installation with core features
+# Basic installation with core features (local)
 pip install nekoconf
 
-# With web server (FastAPI-based)
+# With webui server (FastAPI-based)
 pip install nekoconf[server]
 
 # With schema validation
 pip install nekoconf[schema]
 
-# With remote configuration support
+# With remote client (conntect to a NekoConf server)
 pip install nekoconf[remote]
 
 # For development and testing
@@ -77,7 +74,7 @@ pip install nekoconf[all]
 | Feature                | Extra          | Dependencies                                        | Purpose                                                   |
 |------------------------|----------------|----------------------------------------------------|------------------------------------------------------------|
 | **Core**               | (none)         | pyyaml, colorlog, tomli, tomli-w                    | Basic configuration operations                             |
-| **Web Server/API**     | `server`       | fastapi, uvicorn, jinja2, etc.                     | Run a web server to manage configuration                  |
+| **Web Server/API**     | `server`       | fastapi, uvicorn, etc.                     | Run a web server to manage configuration                  |
 | **Schema Validation**  | `schema`       | jsonschema, rfc3987                                | Validate configuration against JSON Schema                |
 | **Remote Config**      | `remote`       | requests, websocket-client                         | Connect to a remote NekoConf server                       |
 | **Development Tools**  | `dev`          | pytest, pytest-cov, etc.                           | For development and testing                               |
@@ -91,23 +88,23 @@ from nekoconf import NekoConf
 # Initialize with configuration file path (creates file if it doesn't exist)
 config = NekoConf("config.yaml", event_emission_enabled=True)
 
-# Get configuration values (supports nested keys with dot notation)
-db_host = config.get("database.host", default="localhost")
-db_port = config.get("database.port", default=5432)
-
-# Set configuration values
-config.set("database.pool_size", 10)
-config.set("features.dark_mode", True)
-
-# Save changes to file
-config.save()
-
 # Register a handler to react to configuration changes
 @config.on_change("database.*")
 def handle_db_change(path, old_value, new_value, **kwargs):
     print(f"Database configuration changed: {path}")
     print(f"  {old_value} -> {new_value}")
     # Reconnect to database or apply changes...
+
+# Get configuration values (supports nested keys with dot notation)
+db_host = config.get("database.host", default="localhost")
+db_port = config.get("database.port", default=5432)
+
+# Set configuration values
+config.set("database.pool_size", 10) # trigger `handle_db_change`
+config.set("features.dark_mode", True) # won't trigger `handle_db_change`
+
+# Save changes to file
+config.save()
 ```
 
 ## 🔧 Core Features
@@ -117,24 +114,32 @@ def handle_db_change(path, old_value, new_value, **kwargs):
 Load, access, and modify configuration data using dot notation expressions.
 
 ```python
-# Load configuration from file (happens automatically on initialization)
-config = NekoConf("config.yaml")
+sample_config = {
+    "database": {
+        "host": "127.0.0.1",
+        "port": "8080"
+    },
+    "features": {
+        "enabled": False
+    }
+}
+
+# in-memory configuration for demo purposes
+config = NekoConf(sample_config)
 
 # Access values with type conversion
-host = config.get("database.host")
-port = config.get_int("database.port", default=5432)
-is_enabled = config.get_bool("features.enabled", default=False)
+host = config.get("database.host") # "127.0.0.1"
+port = config.get_int("database.port", default=5432) # 8080
+is_enabled = config.get_bool("features.enabled", default=False) # False
 
-# Update multiple values at once
+# Update multiple values at once, or use replace to set the entire config
 config.update({
     "logging": {
         "level": "DEBUG",
         "format": "%(asctime)s - %(levelname)s - %(message)s"
     }
 })
-
-# Save to file
-config.save()
+print(config.json()) 
 ```
 
 ### 🌍 Environment Variable Overrides
@@ -151,26 +156,23 @@ export NEKOCONF_FEATURES_ENABLED=true
 
 ```python
 # These values will reflect environment variables automatically
-config = NekoConf("config.yaml")
+config = NekoConf("config.yaml", env_override_enabled=True)
 print(config.get("database.host"))  # "production-db.example.com" 
 print(config.get_int("database.port"))  # 5433
 print(config.get_bool("features.enabled"))  # True
 ```
-
 You can customize the environment variable prefix and delimiter:
 
 ```python
 config = NekoConf(
     "config.yaml",
+    env_override_enabled=True
     env_prefix="MYAPP",
     env_nested_delimiter="_"
 )
 ```
 
-The above would map `database.host` to `MYAPP_DATABASE_HOST`.
-
-> [!NOTE]
-> See [Environment Variables](docs/environment-variables.md) for more advanced configuration options.
+The above would overwrite `database.host` with `MYAPP_DATABASE_HOST`.
 
 ### 📢 Event System
 
@@ -185,35 +187,36 @@ config = NekoConf("config.yaml", event_emission_enabled=True)
 @config.on_change("database.*")
 def handle_db_change(path, old_value, new_value, **kwargs):
     print(f"Database config {path} changed: {old_value} -> {new_value}")
-    # Reconnect to database or apply the change
 
 # React to specific event types
 @config.on_event([EventType.CREATE, EventType.UPDATE], "cache.*")
-def handle_cache_config(path, new_value, **kwargs):
+def handle_cache_config(event_type, path,new_value, **kwargs):
     if event_type == EventType.CREATE:
         print(f"New cache setting created: {path} = {new_value}")
     else:
         print(f"Cache setting updated: {path} = {new_value}")
-    # Update cache settings...
 
 # Change configuration to trigger events
 config.set("database.timeout", 30)  # Triggers handle_db_change
-config.set("cache.ttl", 600)  # Triggers handle_cache_config
+config.set("cache.ttl", 600)  # Triggers handle_cache_config Create event
+config.set("cache.ttl", 300)  # Triggers handle_cache_config Update event
 ```
-
-For more advanced event patterns, see [Event Handling](docs/event-system.md).
 
 ### 🌐 Remote Configuration
 
 Connect to a remote NekoConf server for centralized configuration (requires `nekoconf[remote]`):
 
 ```python
-# Connect to a remote NekoConf server
+from nekoconf import NekoConf, RemoteStorageBackend
+
+remote_storage = RemoteStorageBackend(
+    url="https://config-server.example.com/api/config",
+    app_name="CustomApp"
+    api_key="secure-key",
+)
+
 config = NekoConf(
-    remote_url="https://config-server.example.com",
-    remote_api_key="secure-key",
-    remote_read_only=True,  # Only read from server, don't push changes back
-    in_memory=True,  # No local file, purely in-memory
+    storage=remote_storage,  # Use remote storage backend
     event_emission_enabled=True # Enable event observer 
 )
 
@@ -225,25 +228,10 @@ db_host = config.get("database.host")
 def handle_feature_change(path, new_value, **kwargs):
     print(f"Feature flag changed: {path} = {new_value}")
     # Apply feature change...
+
+# Set a new value
+config.set("features.dark_mode", True) # This will trigger the `handle_feature_change` callback
 ```
-
-You can also combine remote configuration with local files:
-
-```python
-# Use remote configuration with local backup file
-config = NekoConf(
-    config_path="local-backup.yaml",  # Local backup file
-    remote_url="https://config-server.example.com",
-    remote_api_key="secure-key",
-    remote_read_only=False  # Can push changes back to server
-)
-
-# Changes are first pushed to the remote server, then saved locally
-config.set("api.timeout", 30)
-config.save()
-```
-
-For more details and options, see [Remote Configuration](docs/remote-configuration.md).
 
 ### ✅ Schema Validation
 
@@ -291,201 +279,215 @@ NekoConf includes a web server built with FastAPI to manage configuration remote
 from nekoconf import NekoConf, NekoConfOrchestrator
 
 config = NekoConf("config.yaml")
-server = NekoConfOrchestrator(config, api_key="secure-key")
+apps = {
+    "My_Config_Server": config
+    # add more config app instances as needed
+}
+server = NekoConfOrchestrator(apps, api_key="secure-key", read_only=False)
 server.run(host="0.0.0.0", port=8000)
+```
+
+### Integrating with Existing FastAPI Applications
+
+You can also mount the NekoConf orchestrator into your existing FastAPI application:
+
+```python
+from fastapi import FastAPI
+from nekoconf import NekoConf, NekoConfOrchestrator
+
+# Your existing FastAPI app
+app = FastAPI(title="My Application")
+
+@app.get("/")
+def read_root():
+    return {"message": "Hello from my main app!"}
+
+# Create NekoConf orchestrator
+config = NekoConf("config.yaml")
+apps = {"MyApp": config}
+orchestrator = NekoConfOrchestrator(apps, api_key="secure-key")
+
+# Mount the configuration orchestrator under /config
+app.mount("/config", orchestrator.app)
+
+# Now your app serves both your endpoints and config management:
+# - http://localhost:8000/ - Your main app
+# - http://localhost:8000/config/ - Configuration dashboard
+# - http://localhost:8000/config/docs - Configuration API docs
+# - http://localhost:8000/config/api/apps - Configuration API endpoints
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 ```
 
 Access at http://localhost:8000 for the web UI or use REST endpoints:
 
+> [!TIP]
+> **Interactive API Documentation**: FastAPI automatically generates interactive API documentation available at:
+> - **Swagger UI**: http://localhost:8000/docs 
+> - **ReDoc**: http://localhost:8000/redoc
+> 
+> These provide a complete interactive interface to test all API endpoints directly from your browser.
+
+### Health & System Endpoints
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/config` | GET | Get entire configuration |
-| `/api/config/{path}` | GET | Get specific configuration value |
-| `/api/config/{path}` | POST | Set configuration value |
-| `/api/config/{path}` | DELETE | Delete configuration value |
-| `/api/config/validate` | POST | Validate configuration against schema |
-| `/api/config/reload` | POST | Reload configuration from file |
+| `/health` | GET | Health check and system status |
 
-The server also supports WebSocket connections for real-time configuration updates.
+### App Management Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/apps` | GET | List all managed apps with their information |
+| `/api/apps` | POST | Create a new configuration app |
+| `/api/apps/{app_name}` | GET | Get information about a specific app |
+| `/api/apps/{app_name}` | PUT | Update an app's configuration and metadata |
+| `/api/apps/{app_name}` | DELETE | Delete an app and clean up its resources |
+| `/api/apps/{app_name}/metadata` | PATCH | Update app metadata (name and/or description) |
+
+### Configuration Management Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/apps/{app_name}/config` | GET | Get entire configuration for a specific app |
+| `/api/apps/{app_name}/config` | PUT | Update entire configuration for a specific app |
+| `/api/apps/{app_name}/config/{path}` | GET | Get specific configuration value by path |
+| `/api/apps/{app_name}/config/{path}` | PUT | Set specific configuration value by path |
+| `/api/apps/{app_name}/config/{path}` | DELETE | Delete specific configuration value by path |
+| `/api/apps/{app_name}/validate` | POST | Validate configuration against schema |
+
+### WebSocket Endpoints
+
+| Endpoint | Protocol | Description |
+|----------|----------|-------------|
+| `/ws/{app_name}` | WebSocket | Real-time configuration updates for specific app |
+
+### Static File Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Serve orchestrator dashboard |
+| `/{app_name}` | GET | Serve configuration page for specific app |
+| `/static/{file_path}` | GET | Serve static assets (CSS, JS, images) |
+| `/favicon.ico` | GET | Serve favicon |
+
+The server supports WebSocket connections for real-time configuration updates on a per-app basis.
 
 > [!WARNING]
 > Secure your API with an API key in production environments.
 
-Learn more about the [Web Server and REST API](docs/web-server.md).
+### Web UI Showcases
+
+<div align="center">
+
+**Configuration Management Interface**
+<img src="https://raw.githubusercontent.com/Nya-Foundation/nekoconf/main/assets/config_app.png" width="700" />
+
+**Dashboard & Overview**
+<img src="https://raw.githubusercontent.com/Nya-Foundation/nekoconf/main/assets/dashboard.png" width="700" />
+
+</div>
 
 ## 💻 Command-Line Interface
 
-NekoConf provides a command-line interface for managing configuration:
+NekoConf provides a comprehensive command-line interface for managing configuration:
+
+### Basic Usage
 
 ```bash
-# View help
+# View help and version
 nekoconf --help
+nekoconf --version
 
+# Enable debug logging for any command
+nekoconf --debug <command>
+```
+
+### Server Management
+
+```bash
 # Start web server (requires nekoconf[server])
 nekoconf server --config config.yaml --port 8000 --api-key "secure-key"
+
+# Start server with additional options
+nekoconf server \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --config config.yaml \
+  --schema schema.json \
+  --api-key "secure-key" \
+  --app-name "MyApp" \
+  --event true \
+  --read-only false \
+  --reload true
+```
+
+### Configuration Management
+
+```bash
+# Initialize new configuration with templates
+nekoconf init config.yaml --template default
+nekoconf init api-config.yaml --template api-service
+nekoconf init web-config.yaml --template web-app
+nekoconf init micro-config.yaml --template microservice
+nekoconf init empty-config.yaml --template empty
 
 # Get configuration value
 nekoconf get database.host --config config.yaml
 
-# Get entire configuration as JSON
+# Get entire configuration with different formats
 nekoconf get --config config.yaml --format json
+nekoconf get --config config.yaml --format yaml
+nekoconf get --config config.yaml --format raw
 
 # Set configuration value
 nekoconf set database.port 5432 --config config.yaml
+
+# Set with schema validation
+nekoconf set database.port 5432 --config config.yaml --schema schema.json
 
 # Delete configuration value
 nekoconf delete old.setting --config config.yaml
 
 # Validate configuration (requires nekoconf[schema])
 nekoconf validate --config config.yaml --schema schema.json
-
-# Import configuration from another file
-nekoconf import new-values.json --config config.yaml
-
-# Connect to a remote NekoConf server (requires nekoconf[remote])
-nekoconf connect http://config-server:8000 --api-key "secure-key" --watch
 ```
 
-### Remote Configuration via CLI
-
-You can connect to a remote NekoConf server directly from the command line:
+### Remote Configuration
 
 ```bash
-# Connect to a remote server and watch for config changes
-nekoconf connect http://config-server:8000 --watch --format json
+# Connect to a remote NekoConf server (requires nekoconf[remote])
+nekoconf connect --remote http://config-server:8000 --api-key "secure-key" --format json
 
-# Get a value from remote server
-nekoconf get api.timeout --remote-url http://config-server:8000 --remote-api-key "secure-key"
+# Connect with specific app name
+nekoconf connect --remote http://config-server:8000 --app-name "MyApp" --api-key "secure-key"
 
-# Update a value on the remote server
-nekoconf set cache.ttl 600 --remote-url http://config-server:8000 --remote-api-key "secure-key"
+# Get value from remote server
+nekoconf get database.host --remote http://config-server:8000 --api-key "secure-key"
+
+# Set value on remote server
+nekoconf set cache.ttl 600 --remote http://config-server:8000 --api-key "secure-key"
+
+# Delete value on remote server
+nekoconf delete old.setting --remote http://config-server:8000 --api-key "secure-key"
+
+# Validate remote configuration
+nekoconf validate --remote http://config-server:8000 --api-key "secure-key" --schema schema.json
 ```
 
-See the [CLI Reference](docs/cli-reference.md) for all available commands and options.
+### Configuration Templates
 
-## 🔌 Integration Examples
+The `init` command supports several built-in templates:
 
-### 🌶️ Flask Integration
-
-```python
-from flask import Flask
-from nekoconf import NekoConf
-
-app = Flask(__name__)
-config_manager = NekoConf("flask_app_config.yaml", event_emission_enabled=True)
-
-# Use configuration values to configure Flask
-app.config["DEBUG"] = config_manager.get_bool("app.debug", default=False)
-app.config["SECRET_KEY"] = config_manager.get_str("app.secret_key", default="dev-key")
-
-# Listen for configuration changes
-@config_manager.on_change("app.*")
-def handle_app_config_change(path, new_value, **kwargs):
-    if path == "app.debug":
-        app.config["DEBUG"] = new_value
-    elif path == "app.secret_key":
-        app.config["SECRET_KEY"] = new_value
-    # Note: Some settings require app restart
-
-@app.route('/')
-def index():
-    return f"API Version: {config_manager.get('app.version', 'v1.0')}"
-```
-
-### ⚡ FastAPI Integration
-
-```python
-from fastapi import FastAPI, Depends
-from nekoconf import NekoConf
-
-config_manager = NekoConf("fastapi_config.yaml", event_emission_enabled=True)
-app = FastAPI(title=config_manager.get("api.title", "My API"))
-
-# Dependency to access configuration
-def get_config():
-    return config_manager
-
-@app.get("/")
-def read_root(config: NekoConf = Depends(get_config)):
-    return {"version": config.get("api.version", "1.0")}
-
-# React to configuration changes
-@config_manager.on_change("rate_limit.*")
-async def update_rate_limits(path, new_value, **kwargs):
-    # Update rate limiting middleware configuration
-    print(f"Rate limit updated: {path} = {new_value}")
-```
-
-### 🎸 Django Integration
-
-```python
-# settings.py
-from pathlib import Path
-from nekoconf import NekoConf
-
-# Initialize configuration
-config_manager = NekoConf("django_settings.yaml")
-
-# Use configuration values in Django settings
-DEBUG = config_manager.get_bool("django.debug", default=False)
-SECRET_KEY = config_manager.get_str("django.secret_key", required=True)
-ALLOWED_HOSTS = config_manager.get_list("django.allowed_hosts", default=["localhost"])
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config_manager.get("database.name", "django"),
-        'USER': config_manager.get("database.user", "django"),
-        'PASSWORD': config_manager.get("database.password", ""),
-        'HOST': config_manager.get("database.host", "localhost"),
-        'PORT': config_manager.get_int("database.port", 5432),
-    }
-}
-
-# For dynamic reconfiguration, create an app config to listen for changes
-```
-
-### 📱 Microservices Integration with Remote Config
-
-```python
-# In your microservice
-from nekoconf import NekoConf
-
-# Connect to the central configuration server
-config = NekoConf(
-    remote_url="http://config-service:8000",
-    remote_api_key="service-specific-key",
-    in_memory=True,  # No local file needed
-    event_emission_enabled=True
-)
-
-# Use configuration
-service_port = config.get_int("service.port", 8080)
-feature_flags = config.get("features", {})
-
-# React to configuration changes in real-time
-@config.on_change("features.*")
-def handle_feature_change(path, **kwargs):
-    print(f"Feature flag changed: {path}")
-    # Apply feature change dynamically
-```
-
-## 📚 Documentation
-
-NekoConf offers comprehensive documentation for all its core features and advanced usage. For a better experience, each major topic is documented in a dedicated markdown file under the `docs/` directory. See below for quick links and summaries:
-
-| Topic | Description |
-|-------|-------------|
-| [Environment Variables](docs/environment-variables.md) | How to override config with environment variables, advanced patterns, and customization. |
-| [Event System](docs/event-system.md) | Real-time event handling, usage patterns, and best practices. |
-| [Web Server & REST API](docs/web-server.md) | Running the FastAPI server, REST API endpoints, Web UI, and security. |
-| [CLI Reference](docs/cli-reference.md) | Full command-line usage, options, and examples. |
-| [Schema Validation](docs/schema-validation.md) | Using JSON Schema for config validation, error handling, and tips. |
-| [Security Considerations](docs/security.md) | API key usage, best practices, and deployment security. |
-| [Advanced Usage](docs/advanced-usage.md) | Deep dives: concurrency, integration, dynamic reload, and more. |
-| [Remote Configuration](docs/remote-configuration.md) | Connecting to remote NekoConf servers, synchronization, and deployment patterns. |
-
-For installation, quick start, and integration examples, see above sections. For detailed guides, visit the linked docs.
+| Template | Description | Use Case |
+|----------|-------------|----------|
+| `empty` | 📄 Empty Configuration | Start with a blank configuration |
+| `default` | ⚙️ Default Configuration | Basic configuration template |
+| `web-app` | 🌐 Web Application | Frontend application with server and API settings |
+| `api-service` | 🔌 API Service | Backend service with database and auth configuration |
+| `microservice` | 🐳 Microservice | Containerized service with logging and metrics |
 
 ## ❤️ Discord Community
 
