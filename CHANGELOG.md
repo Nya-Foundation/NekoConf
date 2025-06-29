@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.2.0 (2025-06-29)
+
+### Features
+
+- Major project cleanup, udpate README.md, NekoCon General Availability
+  ([`addb194`](https://github.com/Nya-Foundation/NekoConf/commit/addb1943addbc8d9deb84388ec3762354773b6dd))
+
+
 ## v1.1.3 (2025-06-23)
 
 ### Bug Fixes
