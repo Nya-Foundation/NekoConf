@@ -7,9 +7,9 @@ for configuration changes, with support for filtering and transformation.
 import logging
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from .type import EventType
 from ..utils.helper import getLogger
 from .handler import EventContext, EventHandler
+from .type import EventType
 
 
 class EventPipeline:
