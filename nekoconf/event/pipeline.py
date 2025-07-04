@@ -13,7 +13,9 @@ from .type import EventType
 
 
 class EventPipeline:
-    """Central event pipeline for NekoConf configuration events."""
+    """
+    Central event pipeline for NekoConf configuration events.
+    """
 
     def __init__(self, logger: Optional[logging.Logger] = None):
         """Initialize the event pipeline.

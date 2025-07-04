@@ -5,6 +5,13 @@
   
   <h3>The purr-fect balance of power and simplicity for configuration management.</h3>
   
+  <!-- Language versions -->
+  <p>
+    <a href="README.md">🇺🇸 English</a> |
+    <a href="README_zh.md">🇨🇳 中文</a> |
+    <a href="README_ja.md">🇯🇵 日本語</a>
+  </p>
+  
   <div>
     <a href="https://pypi.org/project/nekoconf/"><img src="https://img.shields.io/pypi/v/nekoconf.svg" alt="PyPI version"/></a>
     <a href="https://pypi.org/project/nekoconf/"><img src="https://img.shields.io/pypi/pyversions/nekoconf.svg" alt="Python versions"/></a>

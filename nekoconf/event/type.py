@@ -2,7 +2,9 @@ from enum import Enum
 
 
 class EventType(Enum):
-    """Types of configuration events."""
+    """
+    Types of configuration events.
+    """
 
     CHANGE = "change"  # Any configuration change
     CREATE = "create"  # New configuration key created

@@ -1,8 +1,10 @@
-"""Abstract base class for storage backends."""
+"""
+Abstract base class for storage backends.
+"""
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 
 class StorageBackend(ABC):
@@ -20,9 +22,9 @@ class StorageBackend(ABC):
             logger: Optional logger instance for logging messages
         """
         self.logger = logger or logging.getLogger(__name__)
-        
-        # List of callback functions to be called on configuration changes
-        self.callbacks: List[callable] = []
+
+        # callbacks for syncing hooks
+        self._sync_handler: callable = None
 
     def __str__(self):
         return f"{self.__class__.__name__}(backend)"
@@ -66,14 +68,6 @@ class StorageBackend(ABC):
         """
         pass
 
-    def cleanup(self) -> None:
-        """Clean up resources used by the storage backend.
-
-        This method is called when the configuration manager is being destroyed.
-        Subclasses should override this if they need to clean up resources.
-        """
-        pass
-
     def reload(self) -> Dict[str, Any]:
         """Reload configuration from the storage backend.
 
@@ -85,30 +79,23 @@ class StorageBackend(ABC):
         """
         return self.load()
 
-    def set_change_callback(self, callback: callable) -> None:
-        """Register a callback to be called on configuration changes.
+    def sync(self, data: Dict[str, Any]) -> None:
+        """Synchronize the configuration from backend to sync handler.
+
+        This method can be overridden by subclasses to implement
+        custom synchronization logic.
 
         Args:
-            callback: Function to call when configuration changes
+            data: Configuration data to synchronize
         """
-        if callable(callback):
-            self.callbacks.append(callback)
-        else:
-            self.logger.warning(f"Provided callback is not callable, got: {type(callback)} instead")
-
-    def unset_change_callback(self, callback: callable) -> None:
-        """Unregister a previously set change callback.
-
-        Args:
-            callback: Function to remove from the change callbacks
-        """
-        if callback in self.callbacks:
-            self.callbacks.remove(callback)
-        else:
-            self.logger.warning(f"Provided callback is not callable, got: {type(callback)} instead")
+        self.logger.debug(f"Synchronizing configuration to handler: {data}")
+        if self._sync_handler:
+            self._sync_handler(data)
 
 
 class StorageError(Exception):
-    """Exception raised when storage operations fail."""
+    """
+    Exception raised when storage operations fail.
+    """
 
     pass
