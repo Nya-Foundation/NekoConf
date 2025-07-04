@@ -1,6 +1,31 @@
 # CHANGELOG
 
 
+## v1.2.1 (2025-07-04)
+
+### Bug Fixes
+
+- Update and fix backend update callback logic, and refine sync logic for remote backend
+  ([`93e29a5`](https://github.com/Nya-Foundation/NekoConf/commit/93e29a5b2ca23a550e51afe4626474630e8e4ed2))
+
+### Chores
+
+- Update README.md with ZH and JA support
+  ([`ade57ef`](https://github.com/Nya-Foundation/NekoConf/commit/ade57ef502150ebd1755e457a8e767f1b606530e))
+
+- Update README.md with ZH and JA support
+  ([`c6b317f`](https://github.com/Nya-Foundation/NekoConf/commit/c6b317f8b6e157797443cb294ab475e55d16175d))
+
+- **format**: Apply automatic formatting [skip ci]
+  ([`7d68688`](https://github.com/Nya-Foundation/NekoConf/commit/7d686882c22c6d96f2255f998dc9b75f5f013237))
+
+- **format**: Apply automatic formatting [skip ci]
+  ([`dbc0f55`](https://github.com/Nya-Foundation/NekoConf/commit/dbc0f5524fab92273d675ba5a342e283839c9e4b))
+
+- **format**: Apply automatic formatting [skip ci]
+  ([`66d4436`](https://github.com/Nya-Foundation/NekoConf/commit/66d443682ac3e1f8db2a447ef80d034e48d2eac7))
+
+
 ## v1.2.0 (2025-06-29)
 
 ### Features
