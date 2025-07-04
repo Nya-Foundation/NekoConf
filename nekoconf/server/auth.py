@@ -3,12 +3,12 @@ Authentication module for NekoConf.
 Provides authentication mechanisms and middleware.
 """
 
-import logging
 import importlib.resources
+import logging
 from typing import Optional
 
-from fastapi.security import APIKeyHeader
 from fastapi import Depends, HTTPException, Request
+from fastapi.security import APIKeyHeader
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import HTMLResponse, JSONResponse
 

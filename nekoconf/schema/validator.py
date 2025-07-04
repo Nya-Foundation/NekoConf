@@ -1,4 +1,6 @@
-"""Schema validation for configuration files."""
+"""
+Schema validation for configuration files.
+"""
 
 import json
 import logging
@@ -22,7 +24,9 @@ except ImportError:
 
 
 class NekoSchemaValidator:
-    """Validates configuration data against a schema using jsonschema."""
+    """
+    Validates configuration data against a schema using jsonschema.
+    """
 
     def __init__(self, schema: Union[Dict[str, Any], str, Path], logger: logging.Logger = None):
         """Initialize the schema validator.

@@ -1,10 +1,13 @@
-"""File-based storage backend."""
+"""
+File-based storage backend.
+"""
 
 from pathlib import Path
 from typing import Any, Dict, Union
 
-from .base import StorageBackend, StorageError
 from ..utils.helper import create_file_if_not_exists, load_file, save_file
+from .base import StorageBackend, StorageError
+
 
 class FileStorageBackend(StorageBackend):
     """Storage backend that persists configuration to a file.
@@ -12,14 +15,14 @@ class FileStorageBackend(StorageBackend):
     Supports YAML, JSON, and TOML file formats.
     """
 
-    def __init__(self, config_path: Union[str, Path], **kwargs):
+    def __init__(self, config_path: Union[str, Path], logger=None):
         """Initialize the file storage backend.
 
         Args:
             config_path: Path to the configuration file
-            **kwargs: Additional arguments passed to parent class
+            logger: Optional logger for logging messages
         """
-        super().__init__(**kwargs)
+        super().__init__(logger=logger)
         self.config_path = Path(config_path)
 
         # Create file if it doesn't exist
@@ -69,6 +72,9 @@ class FileStorageBackend(StorageBackend):
 
             save_file(self.config_path, data)
             self.logger.debug(f"Saved configuration to {self.config_path}")
+
+            if self._sync_handler:
+                self._sync_handler(data)
             return True
 
         except Exception as e:

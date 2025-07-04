@@ -4,8 +4,8 @@ This module provides functionality to override configuration values with
 environment variables using various strategies and patterns.
 """
 
-import os
 import logging
+import os
 from typing import Any, Dict, List, Optional, Tuple
 
 from .helper import get_nested_value, getLogger, parse_value, set_nested_value

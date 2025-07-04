@@ -7,13 +7,15 @@ for configuration changes, with support for filtering and transformation.
 import logging
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from .type import EventType
 from ..utils.helper import getLogger
 from .handler import EventContext, EventHandler
+from .type import EventType
 
 
 class EventPipeline:
-    """Central event pipeline for NekoConf configuration events."""
+    """
+    Central event pipeline for NekoConf configuration events.
+    """
 
     def __init__(self, logger: Optional[logging.Logger] = None):
         """Initialize the event pipeline.

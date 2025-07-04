@@ -105,7 +105,7 @@ class NekoConf:
         self.storage_backend: StorageBackend = self._init_storage_backend(storage)
         if self.storage_backend:
             self.logger.debug(f"Using storage backend: {self.storage_backend}")
-            self.storage_backend.set_change_callback(self._handle_storage_update)
+            self.storage_backend._sync_handler = self._handle_storage_sync
         else:
             self.logger.debug("Using memory-only storage")
             self._memory_only = True
@@ -156,22 +156,30 @@ class NekoConf:
             )
 
     def __enter__(self):
-        """Context manager entry."""
+        """
+        Context manager entry.
+        """
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit with cleanup."""
+        """
+        Context manager exit with cleanup.
+        """
         self.cleanup()
         return False  # Don't suppress exceptions
 
     def cleanup(self):
-        """Clean up resources used by the configuration manager."""
+        """
+        Clean up resources used by the configuration manager.
+        """
         # Clean up storage backend
         if self.storage_backend:
             self.storage_backend.cleanup()
 
     def _init_config(self) -> None:
-        """Initialize the configuration by loading it from the storage backend."""
+        """
+        Initialize the configuration by loading it from the storage backend.
+        """
         if self._memory_only:
             self.logger.debug("Using memory-only storage with initial data")
             return
@@ -190,12 +198,16 @@ class NekoConf:
         if self.env_handler:
             self.env_handler.apply_overrides(self.data, in_place=True)
 
-    def _handle_storage_update(self, config_data: Dict[str, Any]) -> None:
-        """Handle updates from the storage backend."""
+    def _handle_storage_sync(self, config_data: Dict[str, Any]) -> None:
+        """
+        Handle synchronization of configuration data from storage backend.
+        """
         self.replace(config_data)
 
     def _load_validators(self) -> None:
-        """Load schema validators if available."""
+        """
+        Load schema validators if available.
+        """
         self.validator = None
 
         if self.schema_path:

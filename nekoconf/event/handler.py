@@ -6,7 +6,9 @@ from .type import EventType
 
 
 class EventContext:
-    """Context information for a configuration event."""
+    """
+    Context information for a configuration event.
+    """
 
     def __init__(
         self,
@@ -33,7 +35,9 @@ class EventContext:
 
 
 class EventHandler:
-    """Handler for configuration events."""
+    """
+    Handler for configuration events.
+    """
 
     def __init__(
         self,

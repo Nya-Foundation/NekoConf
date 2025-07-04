@@ -64,8 +64,6 @@ class RemoteStorageBackend(StorageBackend):
     def __str__(self):
         return f"{self.__class__.__name__}(remote_url={self.remote_url}, app_name={self.app_name})"
 
-    
-
     def load(self) -> Dict[str, Any]:
         """Load configuration data from remote orchestrator.
 
@@ -294,18 +292,8 @@ class RemoteStorageBackend(StorageBackend):
                     f"Received config update for app '{self.app_name}' from WebSocket"
                 )
 
-                # Notify NekoConf of the change
-                if self.callbacks:
-                    try:
-                        for callback in self.callbacks:
-                            callback(config_data=config_data)
-                            self.logger.debug(
-                                f"Called change callback {callback.__name__} for app '{self.app_name}'"
-                            )
-                    except Exception as e:
-                        self.logger.error(
-                            f"Error in change callback for app '{self.app_name}': {e}"
-                        )
+                # Sync the changes back to the NekoConf instance
+                self.sync(config_data)
 
         except (json.JSONDecodeError, Exception) as e:
             self.logger.warning(
