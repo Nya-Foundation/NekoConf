@@ -4,7 +4,9 @@ from ..utils.helper import parse_path
 
 
 class PathMatcher:
-    """Simple and elegant path matching using Python's power."""
+    """
+    Simple and elegant path matching using Python's power.
+    """
 
     @staticmethod
     def match(pattern: str, path: str) -> bool:
@@ -53,7 +55,9 @@ class PathMatcher:
 
     @staticmethod
     def _segments_match(pattern_segments: List[str], path_segments: List[str]) -> bool:
-        """Match pattern segments against path segments."""
+        """
+        Match pattern segments against path segments.
+        """
         return all(
             pattern_seg == "*" or pattern_seg == path_seg
             for pattern_seg, path_seg in zip(pattern_segments, path_segments)

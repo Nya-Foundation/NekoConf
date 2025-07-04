@@ -17,7 +17,9 @@ logger = getLogger(__name__)
 
 
 class ChangeType(Enum):
-    """Types of changes that can be detected between configurations."""
+    """
+    Types of changes that can be detected between configurations.
+    """
 
     CREATE = "create"  # A new configuration key was created
     UPDATE = "update"  # An existing configuration key was updated
@@ -26,7 +28,9 @@ class ChangeType(Enum):
 
 
 class ConfigChange:
-    """Represents a single change to a configuration value."""
+    """
+    Represents a single change to a configuration value.
+    """
 
     def __init__(
         self,
@@ -67,7 +71,9 @@ class ConfigChange:
 
 
 class ChangeTracker:
-    """Utility for tracking changes between configuration states."""
+    """
+    Utility for tracking changes between configuration states.
+    """
 
     @staticmethod
     def detect_changes(

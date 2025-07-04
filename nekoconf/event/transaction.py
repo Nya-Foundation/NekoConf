@@ -9,7 +9,9 @@ if TYPE_CHECKING:
 
 
 class TransactionManager:
-    """Manages a set of configuration changes as a single transaction."""
+    """
+    Manages a set of configuration changes as a single transaction.
+    """
 
     def __init__(self, config: "NekoConf"):
         """Initialize a transaction manager.

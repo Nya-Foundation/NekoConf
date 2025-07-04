@@ -1,5 +1,6 @@
-"""Command-line interface for NekoConf."""
-
+"""
+Command-line interface for NekoConf.
+"""
 
 import argparse
 import json
@@ -30,26 +31,22 @@ BUILT_IN_TEMPLATES = {
         "name": "Web Application",
         "description": "Frontend application with server and API settings",
         "icon": "🌐",
-        "data": 
-            {
-                "app": {"name": "web-app", "version": "1.0.0", "port": 3000},
-                "server": {"host": "localhost", "ssl": False},
-                "api": {"baseUrl": "/api/v1", "timeout": 5000},
-            },
-            
+        "data": {
+            "app": {"name": "web-app", "version": "1.0.0", "port": 3000},
+            "server": {"host": "localhost", "ssl": False},
+            "api": {"baseUrl": "/api/v1", "timeout": 5000},
+        },
         "format": "json",
     },
     "api-service": {
         "name": "API Service",
         "description": "Backend service with database and auth configuration",
         "icon": "🔌",
-        "data": 
-            {
-                "service": {"name": "api-service", "version": "1.0.0", "port": 8000},
-                "database": {"host": "localhost", "port": 5432, "name": "app_db"},
-                "auth": {"jwt_secret": "your-secret-key", "expires_in": "24h"},
-            },
-            
+        "data": {
+            "service": {"name": "api-service", "version": "1.0.0", "port": 8000},
+            "database": {"host": "localhost", "port": 5432, "name": "app_db"},
+            "auth": {"jwt_secret": "your-secret-key", "expires_in": "24h"},
+        },
         "format": "json",
     },
     # Add more templates as needed
@@ -63,7 +60,6 @@ BUILT_IN_TEMPLATES = {
             "metrics": {"enabled": True, "endpoint": "/metrics"},
             "health": {"endpoint": "/health", "timeout": 30},
         },
-
         "format": "json",
     },
     "default": {
@@ -73,11 +69,9 @@ BUILT_IN_TEMPLATES = {
         "data": {
             "app": {"name": "default-app", "version": "1.0.0"},
             "settings": {"debug": True, "log_level": "info"},
-            },
-            
+        },
         "format": "json",
     },
-    
 }
 
 
@@ -90,7 +84,9 @@ def str2bool(x):
 
 
 def create_parser() -> argparse.ArgumentParser:
-    """Create the main argument parser."""
+    """
+    Create the main argument parser.
+    """
     parser = argparse.ArgumentParser(description="NekoConf - Simple configuration management")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument(
@@ -179,7 +175,11 @@ def create_parser() -> argparse.ArgumentParser:
     # Init command
     init = subparsers.add_parser("init", help="Initialize new configuration")
     init.add_argument("config", help="Name of the configuration file to create")
-    init.add_argument("--template", default="default", help="Configuration template file to use [empty, web-app, api-service, microservice, default]")
+    init.add_argument(
+        "--template",
+        default="default",
+        help="Configuration template file to use [empty, web-app, api-service, microservice, default]",
+    )
 
     return parser
 
@@ -193,7 +193,9 @@ def create_config(
     api_key: Optional[str] = None,
     event: Optional[bool] = False,
 ) -> NekoConf:
-    """Create a NekoConf instance from CLI arguments."""
+    """
+    Create a NekoConf instance from CLI arguments.
+    """
     if remote_url:
         if not HAS_REMOTE_DEPS:
             raise ImportError("Remote features require: pip install nekoconf[remote]")
@@ -216,7 +218,9 @@ def create_config(
 
 
 def format_output(value: Any, format_type: str) -> str:
-    """Format output according to specified format."""
+    """
+    Format output according to specified format.
+    """
     if format_type == "json":
         return json.dumps(value, indent=2)
     elif format_type == "yaml":
@@ -227,7 +231,9 @@ def format_output(value: Any, format_type: str) -> str:
 
 
 def cmd_server(args: argparse.Namespace) -> int:
-    """Handle server command."""
+    """
+    Handle server command.
+    """
     if not HAS_SERVER_DEPS:
         print("Server features require: pip install nekoconf[server]")
         return 1
@@ -253,7 +259,9 @@ def cmd_server(args: argparse.Namespace) -> int:
 
 
 def cmd_connect(args: argparse.Namespace) -> int:
-    """Connect to a remote configuration server."""
+    """
+    Connect to a remote configuration server.
+    """
 
     if not HAS_REMOTE_DEPS:
         print("Remote connection requires: pip install nekoconf[remote]")
@@ -277,7 +285,9 @@ def cmd_connect(args: argparse.Namespace) -> int:
 
 
 def cmd_get(args: argparse.Namespace) -> int:
-    """Handle get command."""
+    """
+    Handle get command.
+    """
     try:
         config = create_config(args.config, remote_url=args.remote, api_key=args.api_key)
         if args.key:
@@ -292,7 +302,9 @@ def cmd_get(args: argparse.Namespace) -> int:
 
 
 def cmd_set(args: argparse.Namespace) -> int:
-    """Handle set command."""
+    """
+    Handle set command.
+    """
     try:
         config = create_config(
             args.config, schema=args.schema, remote_url=args.remote, api_key=args.api_key
@@ -313,7 +325,9 @@ def cmd_set(args: argparse.Namespace) -> int:
 
 
 def cmd_delete(args: argparse.Namespace) -> int:
-    """Handle delete command."""
+    """
+    Handle delete command.
+    """
     try:
         config = create_config(
             args.config, schema=args.schema, remote_url=args.remote, api_key=args.api_key
@@ -333,7 +347,9 @@ def cmd_delete(args: argparse.Namespace) -> int:
 
 
 def cmd_validate(args: argparse.Namespace) -> int:
-    """Handle validate command."""
+    """
+    Handle validate command.
+    """
     if not HAS_SCHEMA_DEPS:
         print("Schema validation requires: pip install nekoconf[schema]")
         return 1
@@ -357,7 +373,9 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
 
 def cmd_init(args: argparse.Namespace) -> int:
-    """Handle init command."""
+    """
+    Handle init command.
+    """
     try:
         config_path = Path(args.config)
 
@@ -375,7 +393,9 @@ def cmd_init(args: argparse.Namespace) -> int:
 
 
 def main_cli() -> int:
-    """Main CLI entry point."""
+    """
+    Main CLI entry point.
+    """
     parser = create_parser()
 
     # Handle --debug flag
